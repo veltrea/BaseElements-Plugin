@@ -8,6 +8,12 @@
 
 # 🟢 SESSION 8 最終状態（2026-07-03 朝） — BE_ContainerConvertImage 完全解決。真犯人は「PRO版限定登録」（ABI/AV は誤診）。ImageMagick はワンショットヘルパー magick.exe へプロセス分離し FMP11 実機で全ケース合格
 
+**⚠️ 最新の確定状態。詳細メモリ: `be-plugin-magick-helper`（SESSION 8 全記録）/ `be-plugin-audit-fixes`（Batch 1〜3 済・Batch 4 残）/ `be-plugin-livefire-results`（誤診訂正済み）。このハンドオーバーを貼らなくてもメモリで文脈復元可能。**
+
+## commit / push 状態
+- **未 push なし**。origin/main = `76aaf21a`（SESSION 8 の全変更: 登録修正 + BEImageMagickHelper + vcxproj + kNoError 修正 + テスト + BOM + 本ハンドオーバー）。
+- 未追跡のまま: `Libraries/fm11-sdk/` `Libraries/win32/`（管理方針は引き続きユーザー判断待ち）。
+
 ## 最重要の発見: livefire の「AV を SEH が握りつぶす」は誤診だった
 - **BE_ContainerConvertImage は `#if BEP_PRO_VERSION` ガードで PRO 版ビルドのみ登録**（BEPlugin.cpp）。このフォークは非 PRO の Release|Win32 なので**一度も登録されていなかった**。
 - FMP11 は**未知関数を含む式を丸ごと "?" にする**（パースエラー。EvaluationError でも捕捉不可、If(False;...) の不実行側でも死ぬ）— これが「正常系も異常系も式全体が?」の正体。ImageMagick の ABI 境界は**呼ばれる前の話**で無関係。
@@ -40,9 +46,28 @@
 - loophole 経由で GUI アプリ（FMP）を直接 start するとパイプ継承でエージェントごと固まる → **schtasks 経由で起動**（`C:\dev\start_fmp.bat` + タスク `fmpstart`）。FMP の終了はメニュー id=57665（taskkill の WM_CLOSE は無視される）。
 - WORK1 は今セッション中に自発再起動あり（06:24）。復旧: `schtasks /run /tn fmd11` → loophole_configure 再デプロイ → `schtasks /run /tn fmpstart`。
 
-## 残作業（優先順）
-1. （任意）belibs.dll から MagickCore/Wand/libpng16/turbojpeg/freetype を抜いて再生成（mkbelibs.sh）→ DLL 減量。プラグインはもう Magick シンボルを参照しない。
-2. 監査 Batch 4: H-3（mac/Linux のサロゲート合成）+ M/L 群 + upstream PR 検討
+## 環境（セッション終了時点）
+- WORK1 稼働中（セッション中 06:24 に自発再起動あり→復旧済み）・FMP11 起動済み（fmtest.fp7、レコード50件超、q は全て "idle"）・fmd11 デーモン稼働中。
+- 配備済み: `Extensions\BaseElements.fmx` = 76aaf21a ビルド / FMP exe 同階層に magick.exe + libgcc_s_dw2-1.dll + libwinpthread-1.dll。
+- **FMP の起動は schtasks タスク `fmpstart`**（`schtasks /run /tn fmpstart`、実体 = `C:\dev\start_fmp.bat`）。loophole から直接 start するとパイプ継承でエージェントが固まる。終了はメニュー id=57665（loophole_menu invoke。taskkill の WM_CLOSE は無視される）。
+- WORK1 再起動後の復旧: `schtasks /run /tn fmd11` → loophole_configure 再デプロイ → `schtasks /run /tn fmpstart`（詳細はメモリ be-plugin-daemon-test）。
+- テスト投入サイクル: `loophole_write_file` で `C:\dev\testdata\job.json` に `{"input":"<FM式>"}` → mssh で `curl.exe -s -X POST --data-binary @C:\dev\testdata\job.json http://127.0.0.1:<PORT>/jobs` → `loophole_menu invoke command_id=50157`（新規レコード、hwnd は loophole_window list で取り直す）→ mssh で `curl /result/job-N` 回収。
+
+## 次タスク（本命）: 監査 Batch 4 — Win 32bit に実害がありうる M 群から着手
+監査文書 = repo ルートの `ENCODING-AUDIT.md`（全343行）と `BUFFER-AUDIT.md`（全246行）。修正済み一覧はメモリ `be-plugin-audit-fixes`（Batch1=02df26ef / Batch2=62675de2 / Batch3=d6b40dee。M-1〜M-4, M-7, M-13, M-16, BUF#1, BUF#5 は済）。**着手優先順（2026-07-03 セッション末に整理）:**
+1. **M-17** `Net/BECurl.cpp:238-241` — CURLINFO_TEXT を NUL 終端仮定で読む（curl は非保証・CURLOPT_VERBOSE は Init() で常時1）→ **全 HTTP リクエストで領域外リードの可能性**。`std::string(data, size)` にするだけ。
+2. **M-5** `BERegularExpression.h` ほか — Poco::RegularExpression に **RE_UTF8 を渡さずバイトモード**。`BE_FileReplaceText`（:915、ファイル全体を置換して書き戻す）で日本語実害大。`BE_RegularExpression` :4693 と `BE_FileReadText` :513 の boost::regex デリミタ分割も同様。
+3. **M-28** `BEPluginFunctions.cpp:3279 BE_BackgroundTaskAdd` — detached スレッドが `&environment` を**参照キャプチャ**（呼び出し元スタック消滅後のダングリング UB）+ JSON→SQL 無エスケープ埋め込み。
+4. **M-10〜M-12** `BEXMLTextReader.cpp` — `_O_WTEXT` 二重変換（→ `_O_BINARY`）/ `isspace` に負値 UB / 空要素 `<a/>` の NULL 未チェッククラッシュ。
+5. **M-29/M-30** — BE_ScriptStepPerform の式インジェクション相当 / BE_FileReadText の負 from 巨大化。
+6. 残り: M-6(curl巻き戻し・認証PUT>64KB破損) / M-8,M-9(SMTP) / M-14(XSLT出力エンコード) / M-23,M-24(値リスト) / BUF#6〜#11。
+- **修正のたびに実機回帰**: 上記「テスト投入サイクル」で `5.0.0|xp=hi|r=REGR-こんにちは|md=2CF24DBA|pc=2|sq=<件数>|ec=7` 形の回帰式（SESSION 8 検証で使用、メモリ be-plugin-magick-helper 参照）を流すと一発で全系統を確認できる。
+- **ソース転送は `mssh put`**（scp・バイナリ無破壊）→ `C:\dev\BaseElements-Plugin\build32.bat` → FMP 終了(menu 57665)→ copy → `schtasks /run /tn fmpstart`。
+- **⚠️ 日本語コメントを書く Source ファイルは UTF-8 BOM 必須**（BOM なしだと cl.exe が CP932 として読み改行を飲む。C1020 か、最悪サイレントにコード行がコメント化）。
+
+## その後の残作業（優先順）
+1. mac/Linux 系の upstream PR 検討: H-3（サロゲート合成）+ BUF#2/#3 + LIBICONV_PLUG の知見 + **PRO 限定登録問題**（本家の非 PRO ビルドでも BE_ContainerConvertImage が未登録のはず — PR ネタ）
+2. （任意）belibs.dll から MagickCore/Wand/libpng16/turbojpeg/freetype を抜いて再生成（mkbelibs.sh）→ DLL 減量。プラグインはもう Magick シンボルを参照しない。
 3. リポジトリ整理（Libraries/win32・fm11-sdk・WORK1 ビルドスクリプトの管理方針）
 4. FMP12+ 対応・配布
 
