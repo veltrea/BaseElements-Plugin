@@ -315,7 +315,9 @@ const std::string XPathObjectAsText ( const xmlXPathObjectPtr xpathObj )
 {
 	
 	std::string result;
-	std::unique_ptr<xmlChar> oject_as_string;
+	// Free libxml2-allocated strings with xmlFree, not C++ delete: libxml2 lives in
+	// belibs.dll with its own CRT heap, so delete would free from the wrong heap.
+	std::unique_ptr<xmlChar, void(*)(void*)> oject_as_string ( nullptr, xmlFree );
 
 	switch ( xpathObj->type ) {
 			
@@ -421,7 +423,7 @@ const std::string NodeSetToValueList ( xmlNodeSetPtr node_set )
 
 	for ( int i = 0; i < node_set->nodeNr; i++ ) {
 
-		const std::unique_ptr<xmlChar> node_as_string ( xmlXPathCastNodeToString ( node_set->nodeTab[i] ) );
+		const std::unique_ptr<xmlChar, void(*)(void*)> node_as_string ( xmlXPathCastNodeToString ( node_set->nodeTab[i] ), xmlFree );
 
 		if ( node_as_string ) {
 			
@@ -473,17 +475,21 @@ const std::string ApplyXPathExpression ( const std::string& xml, const std::stri
 
 	}
 	
-	xmlErrorPtr xml_error = xmlGetLastError();
-	
-	if ( xml_error != NULL ) {
+	// libxml2 2.14+ returns a const error object and may leave a stale error set
+	// even after a successful evaluation. Do not clobber a good result, and clear
+	// via xmlResetLastError() (the pointer from xmlGetLastError() is const and must
+	// not be passed to xmlResetError()).
+	const xmlError* xml_error = xmlGetLastError();
+
+	if ( result.empty() && xml_error != NULL && xml_error->message != NULL ) {
 		g_last_xslt_error_text = xml_error->message;
 		result = ReportXSLTError ( NULL );
 	}
 
-	xmlResetError ( xml_error );
+	xmlResetLastError ( );
 	xmlFreeDoc ( doc );
 
 	return result;
-	
+
 } // ApplyXPathExpression
 
