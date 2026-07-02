@@ -6,6 +6,45 @@
 
 ---
 
+# 🟢 SESSION 9 最終状態（2026-07-03 朝〜） — 監査 Batch 4+5 完了（M-5/6/8/9/10〜12/14/17/23〜30 + BUF#6〜11 全修正・FMP11 実機回帰オールグリーン・push 済み）。重大発見: FMP11 は kFMXT_Idle からの ExecuteFileSQL で必ず 0xc0000409 死
+
+**⚠️ 最新の確定状態。詳細メモリ: `be-plugin-audit-fixes`（Batch 1〜5 の全記録）。**
+
+## commit / push 状態
+- **未 push なし**。origin/main = `098c9204`。
+  - `9031d64b` = Batch 4（M-17/M-5/M-10〜12/M-28〜30 + BackgroundTask 再設計 + curl global 参照保持 + idle 版ゲート）
+  - `7ab49b3f` = Batch 5（M-6/M-8/M-9/M-14/M-23/M-24/M-26/M-27 + BUF#6〜11）
+  - `098c9204` = M-25（4GB 超読み込みの明示エラー化）
+- 未追跡のまま: `Libraries/fm11-sdk/` `Libraries/win32/`（管理方針は引き続きユーザー判断待ち）。
+
+## 今セッションの重大発見（次セッションも必ず前提にすること）
+1. **FMP11 は kFMXT_Idle からの ExecuteFileSQL で必ず 0xc0000409（fail-fast）でホストごと死ぬ**。DDL でも SELECT でも実機実証。**上流の g_ddl_command 経路も同罪**（= FMP11 では BE_FileMakerSQL の DDL は元々クラッシュしていた。livefire は SELECT のみで未検出だった）。対策実装済み: idle の SQL 実行（DDL + バックグラウンド結果）を `extnVersion >= k130ExtnVersion` にゲート。FMP11 のバックグラウンドタスク結果は **BE_BackgroundTaskAdd / BE_BackgroundTaskList 呼び出し時にその環境で刈り取る**（ポーリング型）。
+2. **BE_BackgroundTaskAdd/List も PRO 限定登録だった**（SESSION 8 の BE_ContainerConvertImage と同一パターン）→ 解除済み。**登録判定は `If(False; GetAsText(BE_Xxx(...)); "reg")` が決め手**（"?" = 未登録）。
+3. **detached スレッドから例外が漏れると std::terminate = 0xc0000409**。ワーカー lambda は全体 try/catch 必須（実装済み）。
+4. **~BECurl は毎回 curl_global_cleanup を呼ぶ** → ワーカースレッド上のデストラクトで libcurl 全体 teardown が走り得る → プラグイン生存期間中 `AcquireCurlGlobalReference()` で参照を 1 本保持して封じた（LoadPlugin/UnloadPlugin）。
+5. curl 系グローバル（g_curl_trace / g_curl_info / g_http_response_headers / g_last_error 等）は**全て thread_local**。ワーカーとの競合はないが、ワーカー側の書き込みはメインから見えない（BackgroundTask の JSON 内 "last error" は常にワーカー側の値）。
+
+## 監査の残り（Batch 6 候補 = ほぼ mac/Linux + L 群のみ）
+- **Win 実害系は全て修正済み**（H 群 + M-1〜M-17 + M-20 + M-23〜M-30 + BUF#1/#5〜#11）。
+- 残り: M-18/M-19（Linux）、M-21/M-22（mac）、H-3 + BUF#2/#3（mac/Linux Sub_LoadString・サロゲート）、L-1〜L-20 + BUF#12〜16（低）。→ **上流 PR 検討**とセットで。
+- 上流 PR ネタ: PRO 限定登録問題（ContainerConvertImage + BackgroundTask 系）/ FMP11 idle-SQL クラッシュ（新しい FM でも要検証）/ LIBICONV_PLUG の知見 / H-3。
+
+## 回帰式（job.json 形式・fmd11 デーモン投入用。SESSION 9 の最終形）
+```
+Let([ v = BE_Version; xp = BE_XPath("<a><b>hi</b></a>"; "//b"); w = BE_FileWriteText("C:/dev/testdata/regr.txt"; "REGR-こんにちは"); r = BE_FileReadText("C:/dev/testdata/regr.txt"); rx = BE_RegularExpression("あいうえお"; "い.え"); fd = BE_FileReadText("C:/dev/testdata/regr.txt"; -1; 1; "-"); md = Left(BE_MessageDigest("hello"); 8); pc = BE_PDFPageCount("C:/dev/testdata/two.pdf"); sq = BE_FileMakerSQL("SELECT COUNT(*) FROM fmtest"); x = BE_ExecuteSystemCommand("cmd /c exit 7"; 5000); ec = BE_GetLastError; vt = BE_ValuesTrim(" あ ¶ い "); vu = BE_ValuesUnique("あ、い、あ"; "、") ]; v & "|xp=" & xp & "|r=" & r & "|rx=" & rx & "|fd=" & fd & "|md=" & md & "|pc=" & pc & "|sq=" & sq & "|ec=" & ec & "|vt=[" & Substitute(vt; "¶"; ",") & "]|vu=[" & Substitute(vu; "¶"; ",") & "]")
+```
+期待値: `5.0.0|xp=hi|r=REGR-こんにちは|rx=いうえ|fd=こんにちは|md=2CF24DBA|pc=2|sq=<件数>|ec=7|vt=[あ,い]|vu=[あ、い、あ]`
+（rx / fd は Batch 4 以前のビルドだと空になる = M-5 / M-30 の検証を兼ねる）
+- BackgroundTask 検証: `BE_BackgroundTaskAdd("GET"; Get(CurrentTimeStamp); 0; "SELECT '###RESULT###' FROM fmtest"; ""; "file://C:/dev/testdata/regr.txt"; "")` → t=1|pending=1 → 次の評価で `BE_BackgroundTaskList` → pending=[] + FMP 生存。
+- クラッシュ調査は Windows イベントログ: `powershell -File C:\dev\testdata\getcrash.ps1`（作成済み。Application Error の直近 2 件）。
+
+## 環境（セッション終了時点）
+- WORK1 稼働中・FMP11 起動済み（fmtest.fp7、レコード 65 件、q 全 "idle"）・fmd11 デーモン稼働中（次ジョブ番号 job-30〜）。
+- 配備済み: `Extensions\BaseElements.fmx` = 098c9204 ビルド（4.7MB）+ FMP exe 同階層に magick.exe 等（SESSION 8 のまま）。
+- 操作の要点は SESSION 8 の記載どおり（fmpstart / menu 57665 / mssh put / BOM 注意）。**/next を curl で直接叩かない**（キューのジョブを食べる）。
+
+---
+
 # 🟢 SESSION 8 最終状態（2026-07-03 朝） — BE_ContainerConvertImage 完全解決。真犯人は「PRO版限定登録」（ABI/AV は誤診）。ImageMagick はワンショットヘルパー magick.exe へプロセス分離し FMP11 実機で全ケース合格
 
 **⚠️ 最新の確定状態。詳細メモリ: `be-plugin-magick-helper`（SESSION 8 全記録）/ `be-plugin-audit-fixes`（Batch 1〜3 済・Batch 4 残）/ `be-plugin-livefire-results`（誤診訂正済み）。このハンドオーバーを貼らなくてもメモリで文脈復元可能。**
