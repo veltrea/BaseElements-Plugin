@@ -82,8 +82,14 @@ const unsigned long Sub_LoadString ( unsigned long stringID, FMX_Unichar* intoHe
 
 		}
 		
-		[message getCharacters: (unichar*)intoHere range: {0, [message length]}];
-		intoHere[ [message length] ] = '\0';
+		// clamp to the caller's buffer (intoHereMax includes the terminator)
+		NSUInteger copy_length = [message length];
+		if ( copy_length > (NSUInteger)( intoHereMax - 1 ) ) {
+			copy_length = (NSUInteger)( intoHereMax - 1 );
+		}
+
+		[message getCharacters: (unichar*)intoHere range: {0, copy_length}];
+		intoHere[ copy_length ] = '\0';
 
 	} // intoHere
 	

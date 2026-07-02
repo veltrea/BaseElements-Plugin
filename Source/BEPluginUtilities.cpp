@@ -334,32 +334,49 @@ const std::wstring ParameterAsWideString ( const DataVect& parameters, const FMX
 		TextUniquePtr raw_data;
 		raw_data->SetText ( parameters.AtAsText ( which ) );
 
-		FMX_Int32 text_size = raw_data->GetSize();
-		FMX_UInt16 * text = new FMX_UInt16 [ text_size + 1 ];
-		raw_data->GetUnicode ( text, 0, text_size );
-        text[text_size] = 0x0000;
+		const FMX_UInt32 text_size = raw_data->GetSize();
+		std::vector<FMX_UInt16> text ( text_size + 1 );
+		raw_data->GetUnicode ( text.data(), 0, text_size );
 
 		// wchar_t is 4 bytes on OS X and 2 on Windows
 
 		#if defined FMX_MAC_TARGET || defined FMX_IOS_TARGET || defined FMX_LINUX_TARGET
 
-			wchar_t * parameter = new wchar_t [ text_size + 1 ];
-			for ( long i = 0 ; i <= text_size ; i++ ) {
-				parameter[i] = (wchar_t)text[i];
+			// compose UTF-16 surrogate pairs into single code points; casting
+			// each UTF-16 unit to wchar_t produces two unpaired surrogates for
+			// anything outside the BMP (emoji, supplementary-plane CJK
+			// ideographs) and breaks every file path containing one
+
+			std::wstring converted;
+			converted.reserve ( text_size );
+
+			for ( FMX_UInt32 i = 0 ; i < text_size ; i++ ) {
+
+				const unsigned int lead = text[i];
+
+				if ( lead >= 0xD800 && lead <= 0xDBFF && i + 1 < text_size
+						&& text[i + 1] >= 0xDC00 && text[i + 1] <= 0xDFFF ) {
+
+					const unsigned int trail = text[i + 1];
+					converted.push_back ( (wchar_t)( 0x10000 + ( ( lead - 0xD800 ) << 10 ) + ( trail - 0xDC00 ) ) );
+					++i;
+
+				} else {
+					converted.push_back ( (wchar_t)lead );
+				}
+
 			}
-			delete [] text;
+
+			result.swap ( converted );
 
 		#elif defined FMX_WIN_TARGET
 
-			wchar_t * parameter = (wchar_t*)text;
+			result.assign ( (const wchar_t *)text.data(), text_size );
 
 		#endif
 
-		result.assign ( parameter );
-		delete [] parameter; // parameter == text on Windows
-
 	} catch ( exception& /* e */ ) {
-		;	// return an empty string
+		;	// return the default
 	}
 
 	return result;

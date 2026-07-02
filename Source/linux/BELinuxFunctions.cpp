@@ -222,8 +222,18 @@ unsigned long Sub_LoadString ( const unsigned long string_id, FMX_Unichar * into
 
 		fmx::TextUniquePtr text;
 		text->Assign ( wanted.c_str() );
-		text->GetUnicode ( intoHere, 0, fmx::Text::kSize_End );
-		intoHere[wanted.size()] = 0x0000;
+
+		// clamp to the caller's buffer (intoHereMax includes the terminator)
+		// and terminate after the number of UTF-16 units actually written --
+		// wanted.size() is a UTF-8 byte count, not a UTF-16 unit count
+
+		FMX_UInt32 copy_size = text->GetSize();
+		if ( copy_size > (FMX_UInt32)( intoHereMax - 1 ) ) {
+			copy_size = (FMX_UInt32)( intoHereMax - 1 );
+		}
+
+		text->GetUnicode ( intoHere, 0, copy_size );
+		intoHere[copy_size] = 0x0000;
 
 	} else {
 		returnResult = -123;
