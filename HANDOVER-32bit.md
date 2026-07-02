@@ -33,15 +33,18 @@
 - **submit は loophole 経由が安定**: `loophole_write_file` で `C:\dev\testdata\job.json` に `{"input":"<FM式>"}` を書き → `loophole_shell` で `curl.exe -s -X POST --data-binary @C:\dev\testdata\job.json http://127.0.0.1:<PORT>/jobs` → `loophole_menu invoke command_id=50157`（新規レコード）→ `curl /result/job-N` 回収。**mssh の exec は連投すると "exec request failed on channel 0" で不安定になる**（sshd の抑制。間隔を空ければ復帰）。
 - テスト資材: `C:\dev\testdata\`（two.pdf=自作2ページ / tiny.png=1x1 / cp932.txt / utf16le_bom.txt / nul_utf8.txt=A␀B / iconvtest.cpp）。
 
-## 次タスク（本命）: MagickCore/Wand を MSVC /MT で静的化して belibs から出す（BE_ContainerConvertImage 根治）
+## 次タスク（本命）: BE_ContainerConvertImage をワンショットヘルパープロセス化（ImageMagick をプロセス分離）
 - **症状**: BE_ContainerConvertImage を呼ぶと FM の式評価が丸ごと中断して式全体が `?`（正常系も異常系も。関数内の catch(Magick::Exception&) に到達せず、AV を FMP11 の SEH が握りつぶす挙動）。FMP は落ちない。影響はこの1関数のみ。
 - **現構成の問題**: MagickCore/Wand=mingw（belibs.dll 内、pthread 有効）+ Magick++ だけ MSVC /MT 再コンパイル（**MAGICKCORE_HAVE_PTHREAD 無効化＝CORE と設定不一致でヘッダ内構造体レイアウトが食い違う疑い**）。
-- **方針**（XPath 根治 = be-plugin-xml-msvc-static と同型）:
-  1. ImageMagick 7.1.1-29 を **公式 Windows ビルド系（VisualMagick configure.exe）か CMake** で x86 static /MT ビルド（Quantum16+HDRI — `BEPluginGlobalDefines.h` の `MAGICKCORE_QUANTUM_DEPTH 16` / `MAGICKCORE_HDRI_ENABLE 1` と一致させること）。delegates は png/jpeg(turbojpeg)/freetype/zlib で十分（現行と同等）。ソースは WORK1 `C:\dev\lib32-work\src\` 配下（無ければ取得）。
-  2. Magick++ も同じ configure から MSVC /MT でビルド（**CORE と config を完全一致**させる。現行の msvc_shim.h ハックは不要になるはず）。
-  3. vcxproj の Magick++.lib を新しい静的 lib 群に差し替え。belibs.dll は当面そのまま（MagickCore/Wand の export が残っても未参照なら無害）。余裕があれば belibs から Magick 系を抜いて再生成（mkbelibs.sh、[[be-plugin-belibs-isolation]] 参照）→ DLL が大幅に痩せる。
-  4. 検証: tiny.png→JPEG 変換→BE_ExportFieldContents→デコード確認（ImageMagick なので出力はバイト非決定でもよい、JPEG マジックナンバー FF D8 と再 PageCount 的な整合で判定）+ 異常系（cp932.txt を食わせて err が明示エラーになること）+ 既存全回帰（XPath/HTTP/FileWriteText/Cipher/PDF/SQL）。
-- **保険**: MSVC 化が難航したら暫定で Win32 の BE_ContainerConvertImage を BE_NotImplemented 登録に変えて「静かな評価中断」を「明示エラー」にする（1行、BEPlugin.cpp の jq と同じパターン）。
+- **採用方針（2026-07-03 決定）: MSVC 静的化ではなく IPC/プロセス分離。** プロセス境界は究極の ABI 境界であり、mingw/MSVC 混在問題のクラス全体が消える。IM 自体のバグで落ちても**ヘルパーが死ぬだけ**で FM は無傷＝失敗モードが「黙って評価中断」から「明示エラー」に変わる。既存の mingw IM ビルドがそのまま資産になり、MSVC フルビルド（数日仕事・IM更新のたび再発）が不要。
+- **形はワンショット子プロセス（常駐デーモンは過剰）**: BE_ContainerConvertImage は同期でコンテナを返す計算関数なので、ジョブキュー/通知/Idle ディスパッチは持ち込まない。
+  1. **magick.exe (x86) を用意**: WORK1 の mingw IM 7.1.1-29 ツリー（`C:\dev\lib32-work\src\` 配下）から utilities/magick.exe を static ビルド。楽なら pacman の mingw-w64-i686-imagemagick + 依存 DLL 同梱でも可（別プロセスなので DLL 混在は無害）。
+  2. **BE_ContainerConvertImage を書き換え**: コンテナのバイト列→ %TEMP% の一意名ファイル → `CreateProcessW` で `magick.exe in.<ext> out.<ext>` を同期実行（**ハードタイムアウト必須**、BEShellExec の CreateProcessW/Job kill 機構を流用、[[be-plugin-shellexec-rewrite]]）→ exit code≠0/タイムアウト/出力なし→明示エラー（stderr をエラーテキストへ）→ 出力ファイルを読んで SetResult ( filename, data, claris_type )。一時ファイルは全経路で削除。日本語 %TEMP% パスは wide API で（既に確立済み）。
+  3. **ヘルパーの配置と探索**: PATH 探索禁止。belibs.dll と同じ場所（FMP exe 同階層）または Extensions 固定。見つからなければ明示エラー。
+  4. **vcxproj から Magick++ 依存を削除**: Magick++.lib のリンクと `Magick::Initialize/TerminateMagick`（BEPlugin.cpp）と msvc_shim ハックを除去。余裕があれば belibs.dll から MagickCore/Wand/libpng16/turbojpeg/freetype を抜いて再生成（mkbelibs.sh、[[be-plugin-belibs-isolation]]）→ DLL が大幅に痩せる。
+  5. **検証**: tiny.png→JPEG（出力の JPEG マジック FF D8 確認）/ 異常系=cp932.txt を食わせて明示エラー / タイムアウト系 / 既存全回帰（XPath/HTTP/FileWriteText/Cipher/PDF/SQL、資材は `C:\dev\testdata\`）。
+- **将来**: 大量画像のバッチ変換など非同期要件が出たら、スキル `filemaker-plugin-daemon` の常駐デーモン構成（JSONL over TCP、fmd11 で実証済みのパターン）へ昇格する。
+- **保険**: ヘルパー整備が難航したら暫定で Win32 の BE_ContainerConvertImage を BE_NotImplemented 登録に変えて「静かな評価中断」を「明示エラー」にする（1行、BEPlugin.cpp の jq と同じパターン）。
 
 ## その後の残作業（優先順）
 1. 監査 Batch 4: H-3（mac/Linux のサロゲート合成）+ M/L 群 + upstream PR 検討（LIBICONV_PLUG の知見は本家 x64 にも刺さる可能性）
