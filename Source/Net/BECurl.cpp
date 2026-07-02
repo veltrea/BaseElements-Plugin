@@ -66,6 +66,19 @@ using namespace boost::filesystem;
 #define SFTP_SCHEME "sftp";
 
 
+// see BECurl.h - keeps the libcurl global-init refcount above zero while the plug-in is loaded
+
+void AcquireCurlGlobalReference ( void )
+{
+	curl_global_init ( CURL_GLOBAL_ALL );
+}
+
+void ReleaseCurlGlobalReference ( void )
+{
+	curl_global_cleanup();
+}
+
+
 #pragma mark -
 #pragma mark Globals
 #pragma mark -
@@ -237,7 +250,7 @@ static int trace_callback ( CURL * /* curl */, curl_infotype type, char * data, 
 
 		case CURLINFO_TEXT:
 			g_curl_trace << "== Info: ";
-			g_curl_trace << data;
+			g_curl_trace << std::string ( data, size ); // the buffer is not necessarily NUL terminated
 			// falling through
 
 		default: /* in case a new one is introduced to shock us */

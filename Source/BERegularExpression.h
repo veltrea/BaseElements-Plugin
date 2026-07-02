@@ -20,6 +20,8 @@
 #include <Poco/RegularExpression.h>
 #include <Poco/String.h>
 
+#include <vector>
+
 
 
 /*
@@ -41,8 +43,9 @@
 template <typename T>
 T regular_expression ( const T& text, const T& expression, const std::string options = "", const T& replace_with = "", const bool replace = false )
 {
-    
-	int constructor_options = 0;
+
+	// text from FileMaker is always UTF-8; without RE_UTF8 PCRE matches single bytes inside multi-byte characters
+	int constructor_options = Poco::RegularExpression::RE_UTF8;
     int runtime_options = Poco::RegularExpression::RE_NOTEMPTY; // poco.re hangs when the expression evalutes as "empty" unless this is set;
     
     T regex_options = options;
@@ -121,12 +124,53 @@ T regular_expression ( const T& text, const T& expression, const std::string opt
 		}
 
     } catch ( Poco::RegularExpressionException& e ) {
-        throw BEPlugin_Exception ( e.code() );
+        // e.code() is 0 for pattern/UTF-8 errors; don't let that map to "no error"
+        throw BEPlugin_Exception ( e.code() ? e.code() : kErrorUnknown );
     }
-        
+
     return text_matched;
-    
+
 } // BE_RegularExpression
+
+
+// split text on every match of a regular expression (UTF-8 aware)
+// the trailing piece is always included, even when empty, to match
+// the behaviour of boost::algorithm::split_regex which this replaces
+
+inline std::vector<std::string> regular_expression_split ( const std::string& text, const std::string& expression )
+{
+
+	std::vector<std::string> values;
+
+	try {
+
+		Poco::RegularExpression re ( expression, Poco::RegularExpression::RE_UTF8, false );
+
+		Poco::RegularExpression::Match match_details = { 0, 0 };
+		std::string::size_type search_offset = 0;
+
+		while ( true ) {
+
+			re.match ( text, search_offset, match_details, Poco::RegularExpression::RE_NOTEMPTY );
+
+			if ( std::string::npos == match_details.offset ) {
+				break;
+			}
+
+			values.push_back ( text.substr ( search_offset, match_details.offset - search_offset ) );
+			search_offset = match_details.offset + match_details.length;
+
+		}
+
+		values.push_back ( text.substr ( search_offset ) );
+
+	} catch ( Poco::RegularExpressionException& e ) {
+		throw BEPlugin_Exception ( e.code() ? e.code() : kErrorUnknown );
+	}
+
+	return values;
+
+} // regular_expression_split
 
 
 #endif

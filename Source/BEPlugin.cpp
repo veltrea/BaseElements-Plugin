@@ -40,6 +40,7 @@
 #include "BEFileMakerPlugin.h"
 #include "BESQLCommand.h"
 #include "BEXSLT.h"
+#include "Net/BECurl.h"
 #include "Crypto/BEMessageDigest.h"
 
 #ifdef FMX_MAC_TARGET
@@ -91,6 +92,7 @@ static FMX_Int32 LoadPlugin ( FMX_ExternCallPtr plugin_call )
 
 	InitialiseForPlatform ( );
 	InitialiseLibXSLT();
+	AcquireCurlGlobalReference(); // バックグラウンドタスクのワーカー側 ~BECurl で curl_global_cleanup が実走しないよう参照を保持
 
 
 	QuadCharUniquePtr plugin_id ( PLUGIN_ID );
@@ -314,17 +316,18 @@ static FMX_Int32 LoadPlugin ( FMX_ExternCallPtr plugin_call )
 	g_be_plugin->RegisterFunction ( kBE_CurlGetInfo, BE_CurlGetInfo, 1 );
 
 #ifdef BEP_PRO_VERSION
-	
+
 	#if ( FMX_MAC_TARGET )
 		g_be_plugin->RegisterHiddenFunction ( kBE_Notification, BE_Notification, 2, 3 );
 	#else
 		g_be_plugin->RegisterHiddenFunction ( kBE_Notification, BE_NotImplemented, 2, 3 );
 	#endif
-	
-	g_be_plugin->RegisterFunction ( kBE_BackgroundTaskAdd, BE_BackgroundTaskAdd, 7, 9 );
-	g_be_plugin->RegisterFunction ( kBE_BackgroundTaskList, BE_BackgroundTaskList );
 
 #endif
+
+	// PRO 限定登録だったが非 PRO でも実装は完全（SESSION 8 の BE_ContainerConvertImage と同じ問題）
+	g_be_plugin->RegisterFunction ( kBE_BackgroundTaskAdd, BE_BackgroundTaskAdd, 7, 9 );
+	g_be_plugin->RegisterFunction ( kBE_BackgroundTaskList, BE_BackgroundTaskList );
 
 #ifdef BEP_PRO_VERSION
 	g_be_plugin->RegisterFunction ( kBE_SMTPServer, BE_SMTPServer, 1, 5 );
@@ -396,6 +399,7 @@ static void UnloadPlugin ( void ) {
 #endif
 
 	CleanupLibXSLT();
+	ReleaseCurlGlobalReference();
 
 	delete g_be_plugin;	// un-register the plugin functions
 
@@ -429,10 +433,19 @@ void FMX_ENTRYPT BEP_EXPORT FMExternCallProc ( FMX_ExternCallPtr plugin_call ) {
 		{
 			bool safe_idle = plugin_call->parm1 != kFMXT_Unsafe;
 
-			if ( safe_idle && g_ddl_command.get() != 0 ) {
+			// FMP11 実機では idle からの ExecuteFileSQL が 0xc0000409 で FMP ごと落ちる（DDL でも SELECT でも実証済み）。
+			// idle での SQL 実行は FM13+ に限定し、FMP11 のバックグラウンドタスク結果は
+			// BE_BackgroundTaskAdd / BE_BackgroundTaskList 呼び出し時にその環境で刈り取る
+			if ( safe_idle && gFMX_ExternCallPtr->extnVersion >= k130ExtnVersion ) {
 
-				g_ddl_command->execute ( );
-				g_ddl_command.reset();
+				if ( g_ddl_command.get() != 0 ) {
+
+					g_ddl_command->execute ( );
+					g_ddl_command.reset();
+
+				}
+
+				execute_queued_background_task_sql(); // M-28: background task results, main thread only
 
 			}
 

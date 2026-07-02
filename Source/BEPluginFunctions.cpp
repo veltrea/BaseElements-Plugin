@@ -101,7 +101,6 @@
 #pragma GCC diagnostic ignored "-Wconversion"
 
 #include <boost/algorithm/hex.hpp>
-#include <boost/algorithm/string_regex.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/c_local_time_adjustor.hpp>
 #include <boost/filesystem.hpp>
@@ -513,8 +512,7 @@ FMX_PROC(fmx::errcode) BE_FileReadText ( short /* funcId */, const ExprEnv& /* e
 			if ( !delimiter.empty() ) {
 				
 				bool popped = false;
-				std::vector<std::string> values;
-				boost::algorithm::split_regex ( values, file_contents, boost::regex ( delimiter ) ) ;
+				std::vector<std::string> values = regular_expression_split ( file_contents, delimiter ); // M-5: UTF-8 aware, was byte-mode boost::regex
 				if ( values.back().empty() ) {
 					values.pop_back();
 					popped = true;
@@ -526,7 +524,7 @@ FMX_PROC(fmx::errcode) BE_FileReadText ( short /* funcId */, const ExprEnv& /* e
 					number_to_read = number_of_values;
 				}
 				
-				if ( 1 > read_from ) { // get from the end
+				if ( 1 > from ) { // get from the end (M-30: compare the signed value, the uint32 cast turns negatives into huge offsets)
 					read_from = number_of_values - number_to_read;
 					number_to_read = number_of_values;
 				} else if ( 1 > number_to_read ) {
@@ -3248,6 +3246,9 @@ FMX_PROC(fmx::errcode) BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv&
 {
 	errcode error = NoError();
 
+	// FMP11 では idle で刈り取れない（BEPlugin.cpp の kFMXT_Idle 参照）ので、ここで刈り取る
+	execute_queued_background_task_sql ( &environment );
+
 	const auto it = max_element ( std::begin ( g_background_tasks ), std::end ( g_background_tasks ) );
 	long id = 1;
 	if ( it != std::end ( g_background_tasks ) ) {
@@ -3272,7 +3273,12 @@ FMX_PROC(fmx::errcode) BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv&
 
 		std::shared_ptr<BECurl> curl ( new BECurl ( url, kBE_HTTP_METHOD_POST, "", username, password, post_args ) );
 
-		std::thread background_task ( [id, when, curl, sql, sql_file, &environment] {
+		// M-28: no FMX objects and no FMX API on the worker thread — the finished sql is
+		// queued as plain strings and executed by the idle handler on the main thread
+		std::thread background_task ( [id, when, curl, sql, sql_file] {
+
+			// an exception escaping a detached thread calls std::terminate and kills the host
+			try {
 
 			// when do we run?
 			auto run_at = std::chrono::system_clock::from_time_t ( when );
@@ -3307,14 +3313,19 @@ FMX_PROC(fmx::errcode) BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv&
 			json->stringify ( output, 1 );
 
 			// construct the sql to return the result
+			// the result is substituted into a sql string literal, so double any quotes (M-28)
+			std::string escaped_result = output.str();
+			boost::replace_all ( escaped_result, "'", "''" );
+
 			std::string sql_command = sql;
-			boost::replace_all ( sql_command, "###RESULT###", output.str() );
+			boost::replace_all ( sql_command, "###RESULT###", escaped_result );
 
-			// set the result
-			BESQLCommandUniquePtr sql_cmd ( new BESQLCommand ( sql_command, sql_file ) );
-			sql_cmd->execute ( environment );
+			// hand the result over to the idle handler (also marks the task completed)
+			queue_background_task_sql ( sql_command, sql_file, id );
 
-			g_completed_background_tasks.push_back ( id );
+			} catch ( ... ) {
+				queue_background_task_sql ( "", "", id ); // empty sql = just mark the task completed
+			}
 
 			}
 		);
@@ -3341,11 +3352,14 @@ FMX_PROC(fmx::errcode) BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv&
 } // BE_BackgroundTaskAdd
 
 
-FMX_PROC(fmx::errcode) BE_BackgroundTaskList ( short /* funcId */, const ExprEnv& /* environment */, const DataVect& /* parameters */, Data& results )
+FMX_PROC(fmx::errcode) BE_BackgroundTaskList ( short /* funcId */, const ExprEnv& environment, const DataVect& /* parameters */, Data& results )
 {
 	errcode error = NoError();
 
 	try {
+
+		// FMP11 では idle で刈り取れない（BEPlugin.cpp の kFMXT_Idle 参照）ので、ここで刈り取る
+		execute_queued_background_task_sql ( &environment );
 
 		std::sort ( g_background_tasks.begin(), g_background_tasks.end() );
 		std::sort ( g_completed_background_tasks.begin(), g_completed_background_tasks.end() );
@@ -4078,6 +4092,10 @@ FMX_PROC(fmx::errcode) BE_ScriptStepPerform ( short function_id, const fmx::Expr
 				case fmx::Data::kDTInvalid:
 				default:
 					parameter_value = ParameterAsUTF8String ( parameters, i );
+					// M-29: the value is pasted into calculation text; escape it so it cannot
+					// break out of a quoted string literal (expression injection)
+					boost::replace_all ( parameter_value, "\\", "\\\\" );
+					boost::replace_all ( parameter_value, "\"", "\\\"" );
 
 			}
 

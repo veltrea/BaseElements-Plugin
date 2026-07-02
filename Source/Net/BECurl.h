@@ -159,5 +159,13 @@ protected:
 };
 
 
+// hold one libcurl global-init reference for the lifetime of the plug-in so that a
+// BECurl destroyed on a background task thread never drops the refcount to zero
+// (curl_global_cleanup is not thread-safe and must not run on a worker thread)
+
+void AcquireCurlGlobalReference ( void );
+void ReleaseCurlGlobalReference ( void );
+
+
 #endif // BEXBECURL_HSLT_H
 

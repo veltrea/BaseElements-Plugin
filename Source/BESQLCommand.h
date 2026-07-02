@@ -64,5 +64,16 @@ protected:
 typedef std::unique_ptr<BESQLCommand> BESQLCommandUniquePtr;
 
 
+// background task results (M-28)
+// worker threads must not touch the FMX API or FMX objects, so they queue the
+// finished sql (plain strings only) and the main thread executes it later:
+// on FM13+ the idle handler drains the queue (environment = nullptr, uses the current env);
+// on FMP11 running sql at idle crashes the host (0xc0000409, verified live), so the queue
+// is instead drained inside BE_BackgroundTaskAdd/List using the calling environment
+
+void queue_background_task_sql ( const std::string& sql_command, const std::string& sql_file, const long task_id );
+void execute_queued_background_task_sql ( const fmx::ExprEnv* environment = nullptr ); // main thread only
+
+
 #endif // BESQLCOMMAND_H
 

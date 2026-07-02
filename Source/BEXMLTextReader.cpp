@@ -40,8 +40,9 @@ BEXMLTextReader::BEXMLTextReader ( const std::string xml )
 	auto options = XML_PARSE_HUGE | XML_PARSE_IGNORE_ENC;
 			
 	// if the input, excluding whitespace, begins with < we treat it as xml... if not, treat it as a file path
-	auto it = find_if_not ( xml.begin(), xml.end(), [](int c){ return isspace(c); } );
-	if ( "<" == xml.substr ( 0, 1 ) || *it == '<' ) {
+	// M-11: isspace needs an unsigned char (negative values are UB) and all-whitespace input must not dereference end()
+	auto it = find_if_not ( xml.begin(), xml.end(), [](unsigned char c){ return isspace(c); } );
+	if ( it != xml.end() && *it == '<' ) {
 
 		file = "XML";
 		auto xml_to_parse = xml;
@@ -63,7 +64,7 @@ BEXMLTextReader::BEXMLTextReader ( const std::string xml )
 		if ( file_exists ) {
 
 #if defined ( FMX_WIN_TARGET )
-			file_descriptor = _wopen ( file.c_str(), O_RDONLY | _O_WTEXT );
+			file_descriptor = _wopen ( file.c_str(), O_RDONLY | _O_BINARY ); // M-10: libxml2 wants raw bytes, no crt text-mode translation
 			reader = xmlReaderForFd ( file_descriptor, NULL, NULL, options );
 #else
 			reader = xmlReaderForFile ( file.c_str(), NULL, options );
@@ -295,8 +296,10 @@ std::string BEXMLTextReader::inner_xml()
 	const xmlChar * raw_xml = xmlTextReaderReadInnerXml ( reader );
 	const xmlErrorPtr xml_error = xmlGetLastError();
 	if ( NULL == xml_error ) {
-		inner_xml = (char *)raw_xml;
-		xmlFree ( (void *)raw_xml );
+		if ( NULL != raw_xml ) { // M-12: empty elements (<a/>) return NULL without an error
+			inner_xml = (char *)raw_xml;
+			xmlFree ( (void *)raw_xml );
+		}
 	} else {
 		auto error_code = xml_error->code;
 		xmlResetError ( xml_error );
@@ -316,8 +319,10 @@ std::string BEXMLTextReader::outer_xml()
 	const xmlChar * raw_xml = xmlTextReaderReadOuterXml ( reader );
 	const xmlErrorPtr xml_error = xmlGetLastError();
 	if ( NULL == xml_error ) {
-		outer_xml = (char *)raw_xml;
-		xmlFree ( (void *)raw_xml );
+		if ( NULL != raw_xml ) { // M-12: empty elements (<a/>) return NULL without an error
+			outer_xml = (char *)raw_xml;
+			xmlFree ( (void *)raw_xml );
+		}
 	} else {
 		auto error_code = xml_error->code;
 		xmlResetError ( xml_error );
