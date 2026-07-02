@@ -6,7 +6,49 @@
 
 ---
 
-# 🟢 SESSION 7 最終状態（2026-07-03 未明〜） — ①監査 Batch 3 完了（変換失敗の明示エラー化・NUL保持・curl型ディスパッチ、実機検証済・push済）②iconv errno 境界問題を発見し LIBICONV_PLUG で根治③主要機能の実弾検証完了（不合格は BE_ContainerConvertImage のみ）
+# 🟢 SESSION 8 最終状態（2026-07-03 朝） — BE_ContainerConvertImage 完全解決。真犯人は「PRO版限定登録」（ABI/AV は誤診）。ImageMagick はワンショットヘルパー magick.exe へプロセス分離し FMP11 実機で全ケース合格
+
+## 最重要の発見: livefire の「AV を SEH が握りつぶす」は誤診だった
+- **BE_ContainerConvertImage は `#if BEP_PRO_VERSION` ガードで PRO 版ビルドのみ登録**（BEPlugin.cpp）。このフォークは非 PRO の Release|Win32 なので**一度も登録されていなかった**。
+- FMP11 は**未知関数を含む式を丸ごと "?" にする**（パースエラー。EvaluationError でも捕捉不可、If(False;...) の不実行側でも死ぬ）— これが「正常系も異常系も式全体が?」の正体。ImageMagick の ABI 境界は**呼ばれる前の話**で無関係。
+- 切り分けの決め手: `If(False; GetAsText(BE_ContainerConvertImage("x")); "registered")` が "?" を返した（未登録=パース不能）。BE_JPEGRecompress(271) は同型で "reg271ok" = 登録済み。
+- **副次の確定事実**: FMP11 でもプラグイン関数の非ゼロ返却（例 413）で式は中断しない（値が "?" になるだけで続行）。「非ゼロ返却→式全体?」説も誤り。
+
+## 実装（プロセス分離、計画どおり + 登録修正）
+1. **`Source/BEImageMagickHelper.{h,cpp}`（新規）**: FMWrapper/Poco/boost 非依存の純粋ロジック層。`be_magick::ConvertImage(bytes, ext)` — %TEMP% に `be_img_<pid>_<tick>_<n>_in.dat`（入力、形式は magick がマジックバイト判別）→ `be_shell::RunSystemCommand`（use_shell=false・60秒ハードタイムアウト・Job kill・stderr auto デコード）で `magick.exe -quiet in out.<ext>` 同期実行 → 出力読取。拡張子は [a-z0-9]{1,8} のみ許可。ヘルパー探索は PATH 禁止で belibs.dll のディレクトリ → 自モジュールのディレクトリの順。一時ファイルは全経路で削除。
+2. **BEPluginFunctions.cpp**: BE_ContainerConvertImage を `#if BE_MAGICK_VIA_HELPER`（=Win32、BEPluginGlobalDefines.h で定義）でヘルパー経路に。**失敗時は「stderr テキストを結果 + g_last_error=10300 + return 0」**（式は続行、BE_GetLastError で判定）。
+3. **BEPlugin.cpp**: 登録を `#if BEP_PRO_VERSION` → `#if !FMX_IOS_TARGET` に変更（**これが本命修正**）。InitializeMagick/TerminateMagick と Magick++.h include を BE_MAGICK_VIA_HELPER でガード。
+4. **vcxproj**: Win32 Release×2 から Magick++.lib を除去、BEImageMagickHelper.{h,cpp} を追加。
+5. **ついでのバグ修正**: BE_ExecuteSystemCommand の `g_last_error = ...; return NoError();` は **NoError() が g_last_error をリセットする**ため exit code が常に 0 に消えていた → `return kNoError;` に修正（実機で ec=7 を確認）。
+
+## ヘルパー配布物（FMP exe 同階層 = belibs.dll と同じ場所）
+- `magick.exe`（7.9MB、mingw IM 7.1.1-29 の utilities/magick.exe、IM 静的リンク済み）+ `libgcc_s_dw2-1.dll` + `libwinpthread-1.dll`（C:\msys64\mingw32\bin から）。ステージング = WORK1 `C:\dev\lib32-work\magick-helper\`、配備 bat = `C:\dev\deploy_magick.bat`。
+- Delegates (built-in): freetype jpeg png zlib 等。**heif は無い**（mingw ビルドに未含。BE_ContainerConvertImage(x;"heif") は明示エラーになる。必要なら IM を heif 付きで再ビルド）。
+
+## FMP11 実機検証（fmd11 デーモン + loophole、全合格）
+- 正常系: `BE_HTTP_GET("file://...tiny.png"; "tiny.png")`（**fileName 第2引数必須**=コンテナ返却。無しだとテキスト変換で 10101）→ ContainerConvertImage("jpg") → err=0 → Export → **FF D8 JPEG 286バイト**（単体テストと一致）。
+- 異常系: cp932.txt → err=10300 + `magick.exe: NoDecodeDelegateForThisImageFormat 'DAT'` が結果テキストに。
+- ヘルパー不在: magick.exe をリネーム → err=10300 + `magick.exe not found (expected beside belibs.dll or the plug-in)`。
+- 回帰: `5.0.0|xp=hi|r=REGR-こんにちは|md=2CF24DBA|pc=2|sq=54|ec=7`（XPath/日本語FileIO/SHA256/PDF/SQL/ExecSystemCommand exit code すべて正常）。
+- タイムアウト系は RunSystemCommand の Job kill として test_shellexec で実証済み（ヘルパーは同機構を共有）。
+
+## 単体テスト（FileMaker 不要）
+- `tests/test_magick_helper.cpp` — `cl /EHsc /utf-8 /MT /I ..\Source test_magick_helper.cpp ..\Source\BEImageMagickHelper.cpp ..\Source\BEShellExec.cpp`。exe を magick.exe と同ディレクトリに置いて実行（ビルド bat = WORK1 `C:\dev\BaseElements-Plugin\tests\build_test_magick.bat`）。jpg/png 変換・ゴミ入力・不正拡張子の4ケース ALL PASS。
+
+## 罠（今セッションで踏んだもの）
+- **MSVC は BOM なし UTF-8 の日本語コメントを CP932 として読み、行末のバイト列次第で改行を飲み込む**（C1020 やサイレントなコード行コメント化）。日本語コメントを書く Source ファイルには **UTF-8 BOM 必須**（BEPlugin.cpp / BEPluginFunctions.cpp / BEPluginGlobalDefines.h / 新規2ファイルに付与済み）。
+- loophole 経由で GUI アプリ（FMP）を直接 start するとパイプ継承でエージェントごと固まる → **schtasks 経由で起動**（`C:\dev\start_fmp.bat` + タスク `fmpstart`）。FMP の終了はメニュー id=57665（taskkill の WM_CLOSE は無視される）。
+- WORK1 は今セッション中に自発再起動あり（06:24）。復旧: `schtasks /run /tn fmd11` → loophole_configure 再デプロイ → `schtasks /run /tn fmpstart`。
+
+## 残作業（優先順）
+1. （任意）belibs.dll から MagickCore/Wand/libpng16/turbojpeg/freetype を抜いて再生成（mkbelibs.sh）→ DLL 減量。プラグインはもう Magick シンボルを参照しない。
+2. 監査 Batch 4: H-3（mac/Linux のサロゲート合成）+ M/L 群 + upstream PR 検討
+3. リポジトリ整理（Libraries/win32・fm11-sdk・WORK1 ビルドスクリプトの管理方針）
+4. FMP12+ 対応・配布
+
+---
+
+# 🟢 SESSION 7 最終状態（2026-07-03 未明〜） — ①監査 Batch 3 完了（変換失敗の明示エラー化・NUL保持・curl型ディスパッチ、実機検証済・push済）②iconv errno 境界問題を発見し LIBICONV_PLUG で根治③主要機能の実弾検証完了（不合格は BE_ContainerConvertImage のみ ※SESSION 8 で解決）
 
 **⚠️ 最新の確定状態。詳細メモリ: `be-plugin-audit-fixes`（Batch3全記録）/ `be-plugin-belibs-isolation`（iconv errno境界の発見と修正）/ `be-plugin-livefire-results`（実弾検証の全結果）。このハンドオーバーを貼らなくてもメモリで文脈復元可能。**
 

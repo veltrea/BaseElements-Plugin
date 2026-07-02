@@ -1,4 +1,4 @@
-/*
+﻿/*
  BEPlugin.cpp
  BaseElements Plug-in
 
@@ -53,10 +53,14 @@
 #endif
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#include <Magick++.h>
-#pragma GCC diagnostic pop
+// 32bit Windows (BE_MAGICK_VIA_HELPER) では ImageMagick をリンクしない。
+// 画像変換は同梱 magick.exe に委譲する（Source/BEImageMagickHelper.h）。
+#if !defined(BE_MAGICK_VIA_HELPER)
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wpedantic"
+	#include <Magick++.h>
+	#pragma GCC diagnostic pop
+#endif
 
 
 using namespace std;
@@ -94,7 +98,7 @@ static FMX_Int32 LoadPlugin ( FMX_ExternCallPtr plugin_call )
 	g_be_plugin->set_fmx_application ( plugin_call->parm1 );
 
 
-#ifndef FMX_IOS_TARGET
+#if !defined(FMX_IOS_TARGET) && !defined(BE_MAGICK_VIA_HELPER)
     Magick::InitializeMagick ( NULL );
 #endif
 
@@ -237,7 +241,10 @@ static FMX_Int32 LoadPlugin ( FMX_ExternCallPtr plugin_call )
 
 	g_be_plugin->RegisterFunction ( kBE_JPEGRecompress, BE_JPEGRecompress, 1, 3 );
 
-#if BEP_PRO_VERSION && !FMX_IOS_TARGET
+#if !FMX_IOS_TARGET
+	// 本家では BEP_PRO_VERSION 限定登録だが、この 32bit フォークでは常に登録する。
+	// （非 PRO ビルドでは未登録 → FMP11 は未知関数を含む式全体を "?" にするため、
+	//   「AV で式評価が中断」に見える症状の真因がこの未登録だった）
 	g_be_plugin->RegisterFunction ( kBE_ContainerConvertImage, BE_ContainerConvertImage, 1, 2 );
 #endif
 
@@ -384,7 +391,7 @@ static FMX_Int32 LoadPlugin ( FMX_ExternCallPtr plugin_call )
 static void UnloadPlugin ( void ) {
 
 
-#ifndef FMX_IOS_TARGET
+#if !defined(FMX_IOS_TARGET) && !defined(BE_MAGICK_VIA_HELPER)
     Magick::TerminateMagick();
 #endif
 

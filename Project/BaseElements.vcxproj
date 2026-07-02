@@ -534,7 +534,7 @@
       <Culture>0x0c09</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmt.lib;xml2msvc.lib;xsltmsvc.lib;exsltmsvc.lib;winiconv.lib;belibs.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;comctl32.lib;podofo.lib;iphlpapi.lib;heif.lib;libde265.lib;Magick++.lib;libboost_thread-vc141-mt-s-x32-1_75.lib;libboost_filesystem-vc141-mt-s-x32-1_75.lib;libboost_date_time-vc141-mt-s-x32-1_75.lib;libboost_chrono-vc141-mt-s-x32-1_75.lib;libboost_regex-vc141-mt-s-x32-1_75.lib;libboost_program_options-vc141-mt-s-x32-1_75.lib;PocoZipmt.lib;PocoNetmt.lib;PocoCryptomt.lib;PocoUtilmt.lib;PocoJSONmt.lib;PocoXMLmt.lib;PocoFoundationmt.lib;urlmon.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmt.lib;xml2msvc.lib;xsltmsvc.lib;exsltmsvc.lib;winiconv.lib;belibs.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;comctl32.lib;podofo.lib;iphlpapi.lib;heif.lib;libde265.lib;libboost_thread-vc141-mt-s-x32-1_75.lib;libboost_filesystem-vc141-mt-s-x32-1_75.lib;libboost_date_time-vc141-mt-s-x32-1_75.lib;libboost_chrono-vc141-mt-s-x32-1_75.lib;libboost_regex-vc141-mt-s-x32-1_75.lib;libboost_program_options-vc141-mt-s-x32-1_75.lib;PocoZipmt.lib;PocoNetmt.lib;PocoCryptomt.lib;PocoUtilmt.lib;PocoJSONmt.lib;PocoXMLmt.lib;PocoFoundationmt.lib;urlmon.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>..\Libraries\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -590,7 +590,7 @@
       <Culture>0x0c09</Culture>
     </ResourceCompile>
     <Link>
-      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmt.lib;xml2msvc.lib;xsltmsvc.lib;exsltmsvc.lib;winiconv.lib;belibs.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;comctl32.lib;podofo.lib;iphlpapi.lib;heif.lib;libde265.lib;Magick++.lib;libboost_thread-vc141-mt-s-x32-1_75.lib;libboost_filesystem-vc141-mt-s-x32-1_75.lib;libboost_date_time-vc141-mt-s-x32-1_75.lib;libboost_chrono-vc141-mt-s-x32-1_75.lib;libboost_regex-vc141-mt-s-x32-1_75.lib;libboost_program_options-vc141-mt-s-x32-1_75.lib;PocoZipmt.lib;PocoNetmt.lib;PocoCryptomt.lib;PocoUtilmt.lib;PocoJSONmt.lib;PocoXMLmt.lib;PocoFoundationmt.lib;urlmon.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmt.lib;xml2msvc.lib;xsltmsvc.lib;exsltmsvc.lib;winiconv.lib;belibs.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;comctl32.lib;podofo.lib;iphlpapi.lib;heif.lib;libde265.lib;libboost_thread-vc141-mt-s-x32-1_75.lib;libboost_filesystem-vc141-mt-s-x32-1_75.lib;libboost_date_time-vc141-mt-s-x32-1_75.lib;libboost_chrono-vc141-mt-s-x32-1_75.lib;libboost_regex-vc141-mt-s-x32-1_75.lib;libboost_program_options-vc141-mt-s-x32-1_75.lib;PocoZipmt.lib;PocoNetmt.lib;PocoCryptomt.lib;PocoUtilmt.lib;PocoJSONmt.lib;PocoXMLmt.lib;PocoFoundationmt.lib;urlmon.lib;%(AdditionalDependencies)</AdditionalDependencies><AdditionalOptions>%(AdditionalOptions)</AdditionalOptions>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>..\Libraries\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
@@ -755,6 +755,7 @@
   <ItemGroup>
     <ClCompile Include="..\Source\BEDebugInformation.cpp" />
     <ClCompile Include="..\Source\BEPDF.cpp" />
+    <ClCompile Include="..\Source\BEImageMagickHelper.cpp" />
     <ClCompile Include="..\Source\BEShellExec.cpp" />
     <ClCompile Include="..\Source\BETask.cpp" />
     <ClCompile Include="..\Source\BEXMLSchema.cpp" />
@@ -830,6 +831,7 @@
     <ClInclude Include="..\Resources\resource_version.h" />
     <ClInclude Include="..\Source\BEDebugInformation.h" />
     <ClInclude Include="..\Source\BEPDF.h" />
+    <ClInclude Include="..\Source\BEImageMagickHelper.h" />
     <ClInclude Include="..\Source\BEShellExec.h" />
     <ClInclude Include="..\Source\BETask.h" />
     <ClInclude Include="..\Source\BEXMLSchema.h" />

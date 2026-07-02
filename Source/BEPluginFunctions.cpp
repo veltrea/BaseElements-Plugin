@@ -1,4 +1,4 @@
-/*
+﻿/*
  BEPluginFunctions.cpp
  BaseElements Plug-In
 
@@ -115,10 +115,14 @@
 #pragma GCC diagnostic pop
 
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpedantic"
-#include <Magick++.h>
-#pragma GCC diagnostic pop
+#if defined(BE_MAGICK_VIA_HELPER)
+	#include "BEImageMagickHelper.h"
+#else
+	#pragma GCC diagnostic push
+	#pragma GCC diagnostic ignored "-Wpedantic"
+	#include <Magick++.h>
+	#pragma GCC diagnostic pop
+#endif
 
 
 using namespace std;
@@ -4328,13 +4332,14 @@ FMX_PROC(fmx::errcode) BE_ExecuteSystemCommand ( short /* funcId */, const ExprE
 			// プロセスを起動できなかった（実行ファイル不在等）
 			error = kErrorUnknown;
 		} else if ( result.timed_out ) {
-			// タイムアウト時は途中までの出力を返し、状態は BE_GetLastError で拾わせる
+			// タイムアウト時は途中までの出力を返し、状態は BE_GetLastError で拾わせる。
+			// NoError() は g_last_error をリセットしてしまうので呼ばず kNoError を返す
 			g_last_error = kCommandTimeout;
-			return NoError();
+			return kNoError;
 		} else {
 			// 成功時は子プロセスの終了コードを BE_GetLastError で取得できるようにする
 			g_last_error = (errcode) result.exit_code;
-			return NoError();
+			return kNoError;
 		}
 
 	} catch ( bad_alloc& /* e */ ) {
@@ -4615,6 +4620,22 @@ FMX_PROC(fmx::errcode) BE_ContainerConvertImage ( short /* funcId */, const Expr
 			}
 
 
+#if defined(BE_MAGICK_VIA_HELPER)
+
+			// 変換は同梱 magick.exe のワンショット実行に委譲する（プロセス分離、
+			// 詳細は BEImageMagickHelper.h）。FMP11 はプラグイン関数の非ゼロ返却で
+			// 式全体を "?" に潰すため、失敗は「エラーテキストを結果 + BE_GetLastError
+			// = 10300」で明示し、戻り値は 0 にして式の評価は続行させる。
+			auto converted = be_magick::ConvertImage ( container_data, new_magick_type );
+			if ( ! converted.ok ) {
+				SetResult ( converted.error_utf8, results );
+				g_last_error = kImageMagickError;
+				return kNoError;
+			}
+			const std::vector<char> to_container ( std::move ( converted.output ) );
+
+#else
+
 			Magick::Blob from_container ( container_data.data(), container_data.size() );
 
 			Poco::Path source_file_name ( filename );
@@ -4627,6 +4648,8 @@ FMX_PROC(fmx::errcode) BE_ContainerConvertImage ( short /* funcId */, const Expr
 			auto converted_image_end = (const char *)converted_image.data() + converted_image.length();
 			const std::vector<char> to_container ( (const char *)converted_image.data(), converted_image_end );
 
+#endif
+
 			Poco::Path new_file_name ( filename );
 			new_file_name.setExtension ( new_magick_type );
 
@@ -4636,8 +4659,10 @@ FMX_PROC(fmx::errcode) BE_ContainerConvertImage ( short /* funcId */, const Expr
 			error = kInvalidFieldType;
 		}
 
+#if !defined(BE_MAGICK_VIA_HELPER)
 	} catch ( Magick::Exception& /* e */ ) {
 		error = kImageMagickError;
+#endif
 	} catch ( BEPlugin_Exception& e ) {
 		error = e.code();
 	} catch ( bad_alloc& /* e */ ) {

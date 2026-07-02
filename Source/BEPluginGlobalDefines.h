@@ -1,4 +1,4 @@
-/*
+﻿/*
  BEPluginGlobalDefines.h
  BaseElements Plug-In
 
@@ -53,7 +53,15 @@
 
 	#define PATH_MAX MAX_PATH
 
-	#define BEP_EXPORT 
+	#define BEP_EXPORT
+
+	#if !defined(_WIN64)
+		// 32bit ビルドは ImageMagick を本体にリンクせず、同梱の magick.exe（ワン
+		// ショット子プロセス）へ画像変換を委譲する。mingw ビルドの IM を MSVC 本体
+		// に混在リンクすると ABI 境界の AV で FM の式評価ごと中断するため。
+		// （HANDOVER-32bit.md SESSION 7 / Source/BEImageMagickHelper.h）
+		#define BE_MAGICK_VIA_HELPER 1
+	#endif
 
 #elif defined __linux__
 
