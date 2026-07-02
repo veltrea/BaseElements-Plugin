@@ -68,7 +68,7 @@ void SetResult ( const std::string& filename, const std::vector<unsigned char>& 
 void SetResult ( const BEValueList<std::string>& value_list, fmx::Data& results );
 
 const bool ParameterAsBoolean ( const fmx::DataVect& parameters, const FMX_UInt32 which = 0, const bool default_value = true );
-const double ParameterAsDouble ( const fmx::DataVect& parameters, const FMX_UInt32 which = 0, const bool default_value = 0.0 );
+const double ParameterAsDouble ( const fmx::DataVect& parameters, const FMX_UInt32 which = 0, const double default_value = 0.0 );
 const long ParameterAsLong ( const fmx::DataVect& parameters, const FMX_UInt32 which = 0, const unsigned long default_value = 0 );
 const long ParameterAsIndex ( const fmx::DataVect& parameters, const FMX_UInt32 which = 0, const unsigned long default_value = 0 );
 const std::string ParameterAsUTF8String ( const fmx::DataVect& parameters, const FMX_UInt32 which = 0, const std::string default_value = "" );

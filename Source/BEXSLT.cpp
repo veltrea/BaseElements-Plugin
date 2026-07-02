@@ -70,26 +70,24 @@ static void XSLTErrorFunction ( void *context ATTRIBUTE_UNUSED, const char *mess
 {
 	va_list parameters;
 	va_start ( parameters, message );
-	const int size = 10240;
-	
-	try {
-		xmlChar buffer[size]; // individual errors are typically < 1k
-		
-		int error = xmlStrVPrintf ( buffer, size, message, parameters ); // -1 on error
-		if ( error != -1 ) {
-			g_last_xslt_error_text += reinterpret_cast<char*> ( buffer );
-		} else {
-			g_last_xslt_error = kLowMemoryError;
-		}
-		
-	} catch ( exception& /* e */ ) {
-		// if there's not enough memory to handle the error message then try sending it to stderr 
-		vfprintf ( stderr, message, parameters );
-		g_last_xslt_error = kLowMemoryError;
-	}	
-	
+
+	// BUF#9: two-pass vsnprintf - the old 10240 byte buffer silently dropped long
+	// messages (schema paths, xpaths) and mis-reported them as kLowMemoryError
+
+	va_list size_check;
+	va_copy ( size_check, parameters );
+	const int required = vsnprintf ( NULL, 0, message, size_check );
+	va_end ( size_check );
+
+	if ( required >= 0 ) {
+		std::string buffer ( (size_t)required + 1, '\0' );
+		vsnprintf ( &buffer[0], buffer.size(), message, parameters );
+		buffer.resize ( (size_t)required );
+		g_last_xslt_error_text += buffer;
+	}
+
 	va_end ( parameters );
-	
+
 } // xsltErrorFunction
 
 
@@ -213,7 +211,13 @@ const std::string ApplyXSLTInMemory ( const std::string& xml, const std::string&
 								
 							xmlOutputBufferPtr outputBufPtr = xmlOutputBufferCreateBuffer ( buffer, NULL );
 							if ( outputBufPtr ) {
+								// M-14: the result becomes FileMaker text, which is always UTF-8 -
+								// serialise as UTF-8 even when <xsl:output encoding="..."> says otherwise
+								// (the file branch above still honours the declared encoding)
+								xmlChar * declared_encoding = stylesheet->encoding;
+								stylesheet->encoding = NULL; // NULL = UTF-8
 								xsltSaveResultTo ( outputBufPtr, xslt_result, stylesheet );
+								stylesheet->encoding = declared_encoding;
 								result.assign ( (char *)(buffer->content), buffer->use );	// return transformed xml on success
 								xmlOutputBufferClose ( outputBufPtr ); // auto reply =
 							}

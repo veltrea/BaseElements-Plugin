@@ -135,18 +135,60 @@ template <typename T>
 BEValueList<T>::BEValueList ( const T& value_list, const T& delimiter, const bool is_case_sensitive, bool retain_empty_values )
 {
 	if ( !value_list.empty() ) {
-		
-		auto token_compress = boost::token_compress_on; // strip empty values
-		if ( retain_empty_values ) {
-			token_compress = boost::token_compress_off;
-		}
 
-		boost::split ( values, value_list, boost::is_any_of ( delimiter ), token_compress );
+		if constexpr ( sizeof ( typename T::value_type ) == 1 ) {
+
+			// M-23: split on each utf-8 character of the delimiter, not on each byte -
+			// boost::is_any_of treated a multi-byte delimiter as a byte set, cutting
+			// unrelated characters that happen to share those bytes
+
+			std::vector<T> delimiter_characters;
+			for ( typename T::size_type i = 0 ; i < delimiter.size() ; ) {
+				const auto lead = static_cast<unsigned char> ( delimiter[i] );
+				typename T::size_type length = 1;
+				if ( (lead & 0xf8) == 0xf0 ) { length = 4; }
+				else if ( (lead & 0xf0) == 0xe0 ) { length = 3; }
+				else if ( (lead & 0xe0) == 0xc0 ) { length = 2; }
+				if ( i + length > delimiter.size() ) { length = 1; }
+				delimiter_characters.push_back ( delimiter.substr ( i, length ) );
+				i += length;
+			}
+
+			T current;
+			for ( typename T::size_type i = 0 ; i < value_list.size() ; ) {
+				typename T::size_type matched = 0;
+				for ( const auto& d : delimiter_characters ) {
+					if ( value_list.compare ( i, d.size(), d ) == 0 ) {
+						matched = d.size();
+						break;
+					}
+				}
+				if ( matched > 0 ) {
+					values.push_back ( current );
+					current.clear();
+					i += matched;
+				} else {
+					current.push_back ( value_list[i] );
+					++i;
+				}
+			}
+			values.push_back ( current );
+
+		} else {
+
+			auto token_compress = boost::token_compress_on; // strip empty values
+			if ( retain_empty_values ) {
+				token_compress = boost::token_compress_off;
+			}
+
+			boost::split ( values, value_list, boost::is_any_of ( delimiter ), token_compress );
+
+		}
 
 		if ( ! retain_empty_values ) {
 			values.erase ( std::remove ( values.begin(), values.end(), "" ), values.end() );
 		}
-		
+
 	} else {
 		BEValueList<T> ( );
 	}
@@ -503,7 +545,12 @@ BEValueList<T> BEValueList<T>::apply_regular_expression ( const T expression, co
 template <typename T>
 void BEValueList<T>::trim_values ( )
 {
-	for_each ( values.begin(), values.end(), boost::bind ( &boost::trim<T>, boost::placeholders::_1, std::locale() ) );
+	// M-24: std::locale() can classify 0xa0 as whitespace under single-byte locales,
+	// which strips the trailing byte of utf-8 characters like "a-grave" (c3 a0) -
+	// trim ascii whitespace only
+	for ( auto& value : values ) {
+		boost::trim_if ( value, boost::is_any_of ( " \t\r\n\f\v" ) );
+	}
 }
 
 

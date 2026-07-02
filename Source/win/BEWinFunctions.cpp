@@ -230,9 +230,15 @@ const wstring ClipboardFormatNameForID ( const UINT format_id )
 
 		default:
 
-			wchar_t format[PATH_MAX];
-			int name_length = GetClipboardFormatName ( format_id, format, PATH_MAX );
-			format_name = format;
+			// BUF#6: assign with the returned length; on failure (unregistered id etc.)
+			// the buffer is uninitialised, so fall back to an empty name
+			wchar_t format[256];
+			int name_length = GetClipboardFormatName ( format_id, format, 256 );
+			if ( name_length > 0 ) {
+				format_name.assign ( format, name_length );
+			} else {
+				format_name.clear();
+			}
 
 	}
 
@@ -678,13 +684,17 @@ const wstring SelectFolder ( const wstring& prompt, const wstring& in_folder )
 	}
 
     LPITEMIDLIST item_list = SHBrowseForFolder ( &browse_info );
-	
+
 	// if the user hasn't cancelled the dialog get the path to the folder
 
     wchar_t path[PATH_MAX] = L"";
 
 	if ( item_list != 0 ) {
-		SHGetPathFromIDList ( item_list, path );
+		// BUF#7: check the result (paths > MAX_PATH fail) and free the pidl (it leaked)
+		if ( ! SHGetPathFromIDList ( item_list, path ) ) {
+			path[0] = L'\0';
+		}
+		CoTaskMemFree ( item_list );
 	}
 
 	return wstring ( path );
@@ -958,21 +968,31 @@ const bool OpenFile ( const wstring& path )
 
 const std::wstring get_machine_name ()
 {
-	const int BUFFER_SIZE = MAX_COMPUTERNAME_LENGTH + 1;
-	wchar_t buffer[BUFFER_SIZE] = L"";
-	DWORD size = BUFFER_SIZE;
+	// BUF#11: ask for the required size, then fetch (safe for any COMPUTER_NAME_FORMAT)
+	DWORD size = 0;
+	GetComputerNameEx ( ComputerNamePhysicalNetBIOS, NULL, &size ); // fails with ERROR_MORE_DATA, sets size
 
-	GetComputerNameEx ( ComputerNamePhysicalNetBIOS, buffer, &size );
+	std::wstring machine_name;
+	if ( size > 0 ) {
+		std::vector<wchar_t> buffer ( size, L'\0' );
+		if ( GetComputerNameEx ( ComputerNamePhysicalNetBIOS, buffer.data(), &size ) ) {
+			machine_name.assign ( buffer.data(), size ); // size excludes the NUL on success
+		}
+	}
 
-	return buffer;
+	return machine_name;
 }
 
 
 const std::string get_system_drive ( )
 {
-	char system_directory[PATH_MAX];
-	const UINT length = GetSystemDirectoryA ( (LPSTR)system_directory, PATH_MAX );
-	auto system_path = boost::filesystem::path ( system_directory );
+	// BUF#10: use the wide api and check the result; the buffer is uninitialised on failure
+	wchar_t system_directory[PATH_MAX] = L"";
+	const UINT length = GetSystemDirectoryW ( system_directory, PATH_MAX );
+	if ( length == 0 || length >= PATH_MAX ) {
+		return "/C:/"; // very unlikely; keep the historical shape of the result
+	}
+	auto system_path = boost::filesystem::path ( std::wstring ( system_directory, length ) );
 	auto system_drive = system_path.root_name();
 
 	return "/" + system_drive.string() + "/";

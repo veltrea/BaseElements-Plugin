@@ -138,9 +138,10 @@ size_t ReadMemoryCallback (void *ptr, size_t size, size_t nmemb, void *data )
 
 	struct MemoryStruct * userdata = (struct MemoryStruct *)data;
 
+	// M-6: origin stays anchored to the start of the buffer (set in prepare_data_upload);
+	// clobbering it here made SEEK_SET rewinds resend from the last chunk (corrupt uploads)
 	size_t to_copy = ( userdata->size < curl_size ) ? userdata->size : curl_size;
 	memcpy ( ptr, userdata->memory, to_copy );
-	userdata->origin = userdata->memory;
 	userdata->size -= to_copy;
 	userdata->memory += to_copy;
 
@@ -157,9 +158,15 @@ int SeekFunction ( void *instream, curl_off_t offset, int origin )
 
 	struct MemoryStruct *userdata = (struct MemoryStruct *)instream;
 
-	if ( origin == SEEK_SET ) {
-		userdata->size = (size_t)userdata->memory - (size_t)userdata->origin + (size_t)offset;
-		userdata->memory = userdata->origin + offset;
+	if ( origin == SEEK_SET && userdata->origin ) {
+		// total = bytes already consumed + bytes remaining
+		const size_t total = (size_t)( userdata->memory - userdata->origin ) + userdata->size;
+		if ( (size_t)offset <= total ) {
+			userdata->memory = userdata->origin + offset;
+			userdata->size = total - (size_t)offset;
+		} else {
+			result = CURL_SEEKFUNC_FAIL;
+		}
 	} else {
 		// shouldn't be here
 		result = CURL_SEEKFUNC_CANTSEEK;
@@ -893,6 +900,7 @@ void BECurl::prepare_data_upload ( )
 		userdata = InitalizeCallbackMemory();
 		userdata.memory = upload_data.data();
 		userdata.size = upload_data.size();
+		userdata.origin = upload_data.data(); // M-6: fixed anchor for SeekFunction rewinds
 
 		easy_setopt ( CURLOPT_READDATA, &userdata );
 		easy_setopt ( CURLOPT_INFILESIZE_LARGE, (curl_off_t)userdata.size );

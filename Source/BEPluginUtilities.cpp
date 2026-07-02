@@ -290,7 +290,7 @@ const bool ParameterAsBoolean ( const DataVect& parameters, const FMX_UInt32 whi
 }
 
 
-const double ParameterAsDouble ( const fmx::DataVect& parameters, const FMX_UInt32 which, const bool default_value )
+const double ParameterAsDouble ( const fmx::DataVect& parameters, const FMX_UInt32 which, const double default_value ) // M-27: was bool, squashing defaults like 30.0 to 1.0
 {
 	try {
 		return parameters.AtAsNumber ( which ).AsFloat();
@@ -874,8 +874,10 @@ const bool IsValidUTF8 ( const std::string& utf8 )
 			valid = false;
 			error_result = errno;
 
-			if ( EILSEQ != error_result ) {
-				throw BEPlugin_Exception ( (fmx::errcode)error_result );
+			// M-26: EINVAL = a multi-byte sequence truncated at the end of the input,
+			// which is simply invalid utf-8; do not surface a raw errno as an fm error code
+			if ( EILSEQ != error_result && EINVAL != error_result ) {
+				throw BEPlugin_Exception ( kInvalidUTF8 );
 			}
 
 		}
@@ -1256,11 +1258,13 @@ void Do_GetString ( unsigned long whichString, FMX_PtrType /* winLangID */, FMX_
 
 void Do_GetString ( const unsigned long whichStringID, TextUniquePtr& function_information, const int which_string )
 {
+	// BUF#8: zero-initialised heap buffer - guarantees NUL termination even when the
+	// platform loader writes nothing (the win loader clamps, see Sub_LoadString)
 	const int length = 4096;
-	fmx::unichar16 temp_buffer [ length ];
+	std::vector<fmx::unichar16> temp_buffer ( length, 0 );
 
-	Do_GetString ( whichStringID, 0, length, temp_buffer );
-	function_information->AssignUnicode ( temp_buffer );
+	Do_GetString ( whichStringID, 0, length, temp_buffer.data() );
+	function_information->AssignUnicode ( temp_buffer.data() );
 
 	TextUniquePtr function_delimiter;
 	function_delimiter->Assign ( " (" );

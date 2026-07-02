@@ -21,6 +21,7 @@
 #include <Poco/Net/StringPartSource.h>
 #include <Poco/Timestamp.h>
 
+#include <algorithm>
 #include <sstream>
 
 
@@ -28,6 +29,30 @@ using namespace std;
 
 
 thread_local CustomHeaders g_smtp_custom_headers;
+
+
+// M-8: rfc 2047 encode the display name in "display name <user@host>" style addresses;
+// bare addresses and pure us-ascii display names pass through unchanged
+
+static std::string encode_address_display_name ( const std::string& address )
+{
+
+	const auto open_bracket = address.rfind ( '<' );
+	if ( open_bracket == std::string::npos || open_bracket == 0 ) {
+		return address; // bare address (or nothing before the angle-addr)
+	}
+
+	auto display_name = address.substr ( 0, open_bracket );
+	boost::trim ( display_name );
+
+	const bool ascii_only = std::none_of ( display_name.begin(), display_name.end(), [](unsigned char c){ return c > 127; } );
+	if ( display_name.empty() || ascii_only ) {
+		return address;
+	}
+
+	return Poco::Net::MailMessage::encodeWord ( display_name, UTF8 ) + " " + address.substr ( open_bracket );
+
+}
 
 
 #pragma mark -
@@ -39,7 +64,7 @@ BESMTPEmailMessage::BESMTPEmailMessage ( const std::string& from, const BEValueL
 {
 	
 	set_addresses ( Poco::Net::MailRecipient::PRIMARY_RECIPIENT, to );
-	message.setSender ( from );
+	message.setSender ( encode_address_display_name ( from ) ); // M-8
 	message.setSubject ( Poco::Net::MailMessage::encodeWord ( subject, UTF8 ) );
 
 	text = message_body;
@@ -56,8 +81,9 @@ BESMTPEmailMessage::BESMTPEmailMessage ( const std::string& from, const BEValueL
 	message.set ( "X-Mailer", string ( USER_AGENT_STRING ) + " ( " + string ( AUTO_UPDATE_VERSION ) + " )" ); // who we are
 	
 	// custom headers
+	// M-8: encodeWord leaves pure us-ascii values untouched and rfc 2047 encodes the rest
 	for ( auto it = g_smtp_custom_headers.begin() ; it != g_smtp_custom_headers.end() ; it++ ) {
-		message.set ( it->first, it->second );
+		message.set ( it->first, Poco::Net::MailMessage::encodeWord ( it->second, UTF8 ) );
 	}
 	
 	
@@ -118,7 +144,7 @@ void BESMTPEmailMessage::set_bcc_addresses ( const BEValueListStringSharedPtr em
 void BESMTPEmailMessage::set_reply_to ( const std::string& reply_to_address )
 {
 	if ( ! reply_to_address.empty() ) {
-		message.set ( "Reply-To", reply_to_address );
+		message.set ( "Reply-To", encode_address_display_name ( reply_to_address ) ); // M-8
 	}
 
 }
@@ -142,7 +168,7 @@ void BESMTPEmailMessage::add_attachments ( )
 			
 			auto attachment = new_attachment.first;
 			attachment.make_preferred();
-			auto file_name = Poco::Net::MailMessage::encodeWord ( attachment.filename().string() );
+			auto file_name = Poco::Net::MailMessage::encodeWord ( attachment.filename().string(), UTF8 ); // M-9: path::imbue makes .string() utf-8; label it as such
 			message.addAttachment ( file_name, new Poco::Net::FilePartSource ( attachment.string(), new_attachment.second ) );
 			
 		} else {
