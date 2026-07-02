@@ -54,6 +54,7 @@
 #include <zlib/zlib.h>
 
 #include <cstring>
+#include <limits>
 #include <sstream>
 #include <iostream>
 
@@ -707,7 +708,11 @@ const std::vector<char> ReadFileAsBinary ( const boost::filesystem::path path )
 	std::vector<char> file_data;
 
 	if ( exists ( path ) ) {
-		size_t length = (size_t)file_size ( path ); // boost::uintmax_t
+		const auto size_on_disk = file_size ( path ); // boost::uintmax_t
+		if ( size_on_disk > std::numeric_limits<size_t>::max() ) {
+			throw BEPlugin_Exception ( kLowMemoryError ); // M-25: silently truncated on 32-bit before
+		}
+		size_t length = (size_t)size_on_disk;
 
 		if ( length > 0 ) {
 
@@ -735,7 +740,11 @@ std::string ReadFileAsUTF8 ( const boost::filesystem::path path )
 	std::string result;
 
 	if ( exists ( path ) ) {
-		size_t length = (size_t)file_size ( path ); // boost::uintmax_t
+		const auto size_on_disk = file_size ( path ); // boost::uintmax_t
+		if ( size_on_disk > std::numeric_limits<size_t>::max() ) {
+			throw BEPlugin_Exception ( kLowMemoryError ); // M-25: silently truncated on 32-bit before
+		}
+		size_t length = (size_t)size_on_disk;
 
 		if ( length > 0 ) {
 
