@@ -43,7 +43,7 @@ BESMTP::BESMTP ( const std::string _host, const std::string _port, const std::st
 		if ( curl_force_tls ( g_curl_options ) == false ) {
 			scheme += "s";
 		}
-		easy_setopt ( CURLOPT_USE_SSL, CURLUSESSL_ALL );
+		easy_setopt ( CURLOPT_USE_SSL, (long)CURLUSESSL_ALL );
 	}
 	
 	host = _host;
@@ -101,7 +101,7 @@ const fmx::errcode BESMTP::send ( BESMTPEmailMessage * message )
 			userdata.memory = (char *)body_string.c_str();
 			userdata.size = body_string.size();
 			easy_setopt ( CURLOPT_READDATA, &userdata );
-			easy_setopt ( CURLOPT_INFILESIZE, userdata.size );
+			easy_setopt ( CURLOPT_INFILESIZE_LARGE, (curl_off_t)userdata.size );
 			easy_setopt ( CURLOPT_UPLOAD, 1L );
 
 			// send it

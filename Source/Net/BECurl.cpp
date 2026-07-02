@@ -584,12 +584,12 @@ void BECurl::set_parameters ( )
 			vector<char> file_data ( (std::istreambuf_iterator<char> ( input_file ) ), std::istreambuf_iterator<char>() );
 
 			easy_setopt ( CURLOPT_POSTFIELDS, file_data.data() );
-			easy_setopt ( CURLOPT_POSTFIELDSIZE, file_data.size() );
+			easy_setopt ( CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)file_data.size() );
 
 		} else if ( std::string::npos == parameters.find ( "=@" ) ) { // let curl do the work unless there's a file path
 
 			easy_setopt ( CURLOPT_POSTFIELDS, parameters.c_str() );
-			easy_setopt ( CURLOPT_POSTFIELDSIZE, parameters.length() );
+			easy_setopt ( CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)parameters.length() );
 
 		} else {
 
@@ -685,7 +685,7 @@ void BECurl::set_proxy ( struct host_details proxy_server )
 
 		easy_setopt ( CURLOPT_PROXY, proxy.c_str() );
 		easy_setopt ( CURLOPT_PROXYUSERPWD, proxy_login.c_str() );
-		easy_setopt ( CURLOPT_PROXYAUTH, CURLAUTH_ANY );
+		easy_setopt ( CURLOPT_PROXYAUTH, (long)CURLAUTH_ANY );
 
 	}
 
@@ -753,7 +753,7 @@ void BECurl::prepare_file_upload ( )
 		upload_file = FOPEN ( filename.c_str(), _TEXT ( "rb" ) );
 
 		easy_setopt ( CURLOPT_READDATA, upload_file );
-		easy_setopt ( CURLOPT_INFILESIZE, (curl_off_t)file_size ( filename ) );
+		easy_setopt ( CURLOPT_INFILESIZE_LARGE, (curl_off_t)file_size ( filename ) );
 
 	} else {
 		throw BECurl_Exception ( (CURLcode)kFileExistsError );
@@ -802,7 +802,18 @@ void BECurl::easy_setopt ( const CURLoption option, ... )
 		va_start ( curl_parameter, option );
 	#pragma GCC diagnostic pop
 
-	error = curl_easy_setopt ( curl, option, va_arg ( curl_parameter, void * ) );
+	// curl_easy_setopt reads a long, a pointer, a curl_off_t or a curl_blob *
+	// depending on the option; forwarding everything as void * misreads the
+	// 8 byte curl_off_t options where pointers are 4 bytes (32-bit windows)
+	if ( option >= CURLOPTTYPE_BLOB ) {
+		error = curl_easy_setopt ( curl, option, va_arg ( curl_parameter, struct curl_blob * ) );
+	} else if ( option >= CURLOPTTYPE_OFF_T ) {
+		error = curl_easy_setopt ( curl, option, va_arg ( curl_parameter, curl_off_t ) );
+	} else if ( option >= CURLOPTTYPE_OBJECTPOINT ) { // object, string, slist & function pointers
+		error = curl_easy_setopt ( curl, option, va_arg ( curl_parameter, void * ) );
+	} else { // CURLOPTTYPE_LONG & CURLOPTTYPE_VALUES
+		error = curl_easy_setopt ( curl, option, va_arg ( curl_parameter, long ) );
+	}
 	va_end ( curl_parameter );
 	if ( error ) {
 		throw BECurl_Exception ( error );
@@ -871,7 +882,7 @@ void BECurl::prepare_data_upload ( )
 		userdata.size = upload_data.size();
 
 		easy_setopt ( CURLOPT_READDATA, &userdata );
-		easy_setopt ( CURLOPT_INFILESIZE, userdata.size );
+		easy_setopt ( CURLOPT_INFILESIZE_LARGE, (curl_off_t)userdata.size );
 
 		easy_setopt ( CURLOPT_SEEKFUNCTION, SeekFunction );
 		easy_setopt ( CURLOPT_SEEKDATA, &userdata );

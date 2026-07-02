@@ -107,7 +107,6 @@ extern thread_local fmx::errcode g_last_error;
 #define NETWORK_ENDL "\r\n"
 
 #define UTF8 "UTF-8"
-#define UTF16 "UTF-16"
 
 // ImageMagick
 #define MAGICKCORE_QUANTUM_DEPTH 16
@@ -327,6 +326,7 @@ enum errors {
 	kSMTPConnectionFailure = 1507,
 	kFileSystemError = 10000,
 	kInvalidUTF8 = 10100,
+	kTextEncodingConversionError = 10101,
 	kZipError = 10200,
 	kImageMagickError = 10300,
 	kDDLCommandQueued = 11000,

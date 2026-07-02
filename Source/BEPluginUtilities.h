@@ -55,7 +55,7 @@ void SetResult ( const fmx::Text& text, fmx::Data& results );
 
 void SetResult ( const std::string& text, fmx::Data& results );
 void SetResult ( const std::wstring& text, fmx::Data& results );
-void SetResult ( std::vector<char>& data, fmx::Data& results );
+void SetResult ( const std::vector<char>& data, fmx::Data& results );
 void SetResult ( const std::vector<unsigned char>& data, fmx::Data& results );
 void SetResult ( const std::string& filename, const std::vector<unsigned char>& data, fmx::Data& results, const std::string data_type );
 
@@ -96,7 +96,6 @@ const std::vector<char> ReadFileAsBinary ( const boost::filesystem::path path );
 std::string ReadFileAsUTF8 ( const boost::filesystem::path path );
 
 std::vector<char> ConvertTextEncoding ( char * in, const size_t length, const std::string& to, const std::string& from = g_text_encoding );
-std::string ConvertTextEncoding ( std::string& in, const std::string& to, const std::string& from = g_text_encoding );
 const bool IsValidUTF8 ( const std::string& utf8 );
 std::string ConvertTextToUTF8 ( char * in, const size_t length, const std::string& from = g_text_encoding );
 

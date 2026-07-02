@@ -53,6 +53,7 @@
 #include <../Headers/iconv/iconv.h>
 #include <zlib/zlib.h>
 
+#include <cstring>
 #include <sstream>
 #include <iostream>
 
@@ -129,7 +130,7 @@ void SetResult ( const std::string& text, Data& results )
 	if ( IsValidUTF8 ( text ) ) {
 
 		TextUniquePtr result_text;
-		result_text->Assign ( text.c_str(), Text::kEncoding_UTF8 );
+		result_text->AssignWithLength ( text.data(), (fmx::uint32)text.size(), Text::kEncoding_UTF8 );
 		SetResult ( *result_text, results );
 
 	} else {
@@ -148,10 +149,9 @@ void SetResult ( const wstring& text, Data& results )
 
 
 
-void SetResult ( vector<char>& data, Data& results )
+void SetResult ( const vector<char>& data, Data& results )
 {
-	data.push_back ( '\0' );
-	const std::string data_string ( data.data() );//, data.size() );
+	const std::string data_string ( data.data(), data.size() );
 	SetResult ( data_string, results );
 }
 
@@ -747,11 +747,9 @@ std::string ReadFileAsUTF8 ( const boost::filesystem::path path )
 			inFile.read ( buffer.data(), length );
 			inFile.close ();
 
-			// convert the text in the file to utf-8 if possible
+			// convert the text in the file to utf-8; throws when the text
+			// is not valid in any candidate encoding
 			result = ConvertTextToUTF8 ( buffer.data(), length );
-			if ( result.length() == 0 ) {
-				result.assign ( buffer.data() );
-			}
 
 		}
 
@@ -770,44 +768,67 @@ std::string ReadFileAsUTF8 ( const boost::filesystem::path path )
 
 vector<char> ConvertTextEncoding ( char * in, const size_t length, const string& to, const string& from )
 {
-	vector<string> codesets;
-	if ( from != UTF8 ) {
-		codesets.push_back ( from );
-	}
-	codesets.push_back ( UTF8 );
-	codesets.push_back ( UTF16 ); // backwards compatibility with v1.2
-
 	/*
-	 there no clean way to determine the codeset of the supplied text so
-	 try each converting from each of the codesets in turn
+	 a BOM identifies the encoding unambiguously, so it takes precedence over
+	 the configured encoding; otherwise try the configured encoding, then utf-8.
+	 the blind "UTF-16" last resort (v1.2 compatibility) accepted almost any
+	 even-length byte sequence and returned mojibake instead of an error, so
+	 bom-less utf-16 now requires BE_SetTextEncoding ( "UTF-16LE" / "UTF-16BE" )
 	 */
 
+	char * start_of_text = in;
+	size_t text_length = length;
+
+	vector<string> codesets;
+
+	if ( length >= 3 && 0 == memcmp ( in, "\xEF\xBB\xBF", 3 ) ) {
+		codesets.push_back ( UTF8 );
+		start_of_text += 3;
+		text_length -= 3;
+	} else if ( length >= 2 && 0 == memcmp ( in, "\xFF\xFE", 2 ) ) {
+		codesets.push_back ( "UTF-16LE" );
+		start_of_text += 2;
+		text_length -= 2;
+	} else if ( length >= 2 && 0 == memcmp ( in, "\xFE\xFF", 2 ) ) {
+		codesets.push_back ( "UTF-16BE" );
+		start_of_text += 2;
+		text_length -= 2;
+	} else {
+		if ( from != UTF8 ) {
+			codesets.push_back ( from );
+		}
+		codesets.push_back ( UTF8 );
+	}
+
 	const size_t kIconvError = -1;
-	size_t error_result = EILSEQ; // illegal byte sequence
 	vector<string>::iterator it = codesets.begin();
 
 	vector<char> out;
+	auto converted = false;
 
-	while ( error_result == EILSEQ && it != codesets.end() ) {
+	while ( !converted && it != codesets.end() ) {
 
-		char * start = in;
-		size_t start_length = length;
+		char * start = start_of_text;
+		size_t start_length = text_length;
 
-        size_t available = (length * 4) + 1;	// worst case for utf-32 to utf-8 ?
+        size_t available = (text_length * 4) + 1;	// worst case for utf-32 to utf-8 ?
 		std::vector<char> encoded ( available );
 		char * encoded_start = encoded.data();
 		size_t remaining = available;
 
 		iconv_t conversion = iconv_open ( to.c_str(), it->c_str() );
 		if ( conversion != (iconv_t)kIconvError ) {
-			error_result = iconv ( conversion, &start, &start_length, &encoded_start, &remaining );
+			size_t error_result = iconv ( conversion, &start, &start_length, &encoded_start, &remaining );
 			if ( error_result != kIconvError ) {
 				iconv_close ( conversion ); // int =
 				out.assign ( encoded.data(), encoded.data() + available - remaining );
+				converted = true;
 			} else {
                 error_result = errno;
                 iconv_close ( conversion ); // int =
-                if ( error_result != EILSEQ ) {
+				// EILSEQ: invalid byte sequence, EINVAL: incomplete sequence at the
+				// end of the input - either way the text is not in this codeset
+                if ( error_result != EILSEQ && error_result != EINVAL ) {
                     throw BEPlugin_Exception ( (fmx::errcode)error_result );
                 }
 			}
@@ -819,18 +840,13 @@ vector<char> ConvertTextEncoding ( char * in, const size_t length, const string&
 		++it;
 	}
 
+	if ( !converted ) {
+		throw BEPlugin_Exception ( kTextEncodingConversionError );
+	}
+
 	return out;
 
 } // ConvertTextEncoding
-
-
-
-std::string ConvertTextEncoding ( std::string& in, const string& to, const std::string& from )
-{
-	vector<char> text = ConvertTextEncoding ( (char *)in.c_str(), (const size_t)in.size() - 1, to, from );
-	std::string out ( text.begin(), text.end() );
-	return out;
-}
 
 
 const bool IsValidUTF8 ( const std::string& utf8 )
@@ -872,7 +888,7 @@ const bool IsValidUTF8 ( const std::string& utf8 )
 
 
 // convert text to utf-8
-// currently handles utf-16, ascii and utf-8 text
+// handles BOM-tagged utf-8/utf-16 and the encoding set via BE_SetTextEncoding
 
 std::string ConvertTextToUTF8 ( char * in, const size_t length, const std::string& from )
 {
