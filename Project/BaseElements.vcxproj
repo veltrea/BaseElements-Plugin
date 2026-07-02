@@ -17,6 +17,22 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="PRO Debug|Win32">
+      <Configuration>PRO Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="PRO Release|Win32">
+      <Configuration>PRO Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{646553B8-5F11-4EB7-8AFE-29B5AC598E93}</ProjectGuid>
@@ -50,6 +66,32 @@
     <CharacterSet>Unicode</CharacterSet>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseOfAtl>false</UseOfAtl>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseOfAtl>false</UseOfAtl>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -66,6 +108,22 @@
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='PRO Release|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
   </ImportGroup>
@@ -106,6 +164,43 @@
     <TargetName Condition="'$(Configuration)|$(Platform)'=='PRO Debug|x64'">$(ProjectName)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(ProjectName)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='PRO Release|x64'">$(ProjectName)</TargetName>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</IgnoreImportLibrary>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">true</IgnoreImportLibrary>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">false</LinkIncremental>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</IgnoreImportLibrary>
+    <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">true</IgnoreImportLibrary>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</LinkIncremental>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">false</LinkIncremental>
+    <!-- 32-bit output is .fmx (matches the plug-in's own pre-2016 convention and FileMaker's
+         own extension rule: .fmx = 32-bit plug-in, .fmx64 = 64-bit). -->
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.fmx</TargetExt>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">.fmx</TargetExt>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\Libraries\win32;$(LibraryPath)</LibraryPath>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">..\Libraries\win32;$(LibraryPath)</LibraryPath>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.fmx</TargetExt>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">.fmx</TargetExt>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\Libraries\win32;$(LibraryPath)</LibraryPath>
+    <LibraryPath Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">..\Libraries\win32;$(LibraryPath)</LibraryPath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\Headers\ImageMagick-7-win64;../Headers\iconv;../Headers\boost;../Resources;../Headers;../Source;C:\Program Files\Microsoft SDKs\Windows\v7.0A\Include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">..\Headers\ImageMagick-7-win64;../Headers\iconv;../Headers\boost;../Resources;../Headers;../Source;C:\Program Files\Microsoft SDKs\Windows\v7.0A\Include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\Headers\ImageMagick-7-win64;../Headers\iconv;../Headers\boost;../Resources;../Headers;../Source;C:\Program Files\Microsoft SDKs\Windows\v7.0A\Include;$(IncludePath)</IncludePath>
+    <IncludePath Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">..\Headers\ImageMagick-7-win64;../Headers\iconv;../Headers\boost;../Resources;../Headers;../Source;C:\Program Files\Microsoft SDKs\Windows\v7.0A\Include;$(IncludePath)</IncludePath>
+    <!-- OutDir/IntDir point into the repo's own build\ folder rather than a versioned
+         FileMaker Extensions path: a 32-bit .fmx can never load into FileMaker Pro 20
+         (64-bit-only host), so the x64 configs' auto-deploy path does not apply here. -->
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\build\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">..\build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\build\$(Platform)\$(Configuration).intermediate\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">..\build\$(Platform)\$(Configuration).intermediate\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\build\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">..\build\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">..\build\$(Platform)\$(Configuration).intermediate\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">..\build\$(Platform)\$(Configuration).intermediate\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(ProjectName)</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">$(ProjectName)</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(ProjectName)</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">$(ProjectName)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <EmbedManifest>true</EmbedManifest>
@@ -124,6 +219,25 @@
     </CustomBuildAfterTargets>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='PRO Release|x64'">
+    <CustomBuildAfterTargets />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <EmbedManifest>true</EmbedManifest>
+    <GenerateManifest>false</GenerateManifest>
+    <CodeAnalysisRuleSet>C:\Program Files (x86)\Microsoft Visual Studio 14.0\Team Tools\Static Analysis Tools\Rule Sets\NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">
+    <EmbedManifest>true</EmbedManifest>
+    <GenerateManifest>false</GenerateManifest>
+    <CodeAnalysisRuleSet>C:\Program Files (x86)\Microsoft Visual Studio 14.0\Team Tools\Static Analysis Tools\Rule Sets\NativeRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <RunCodeAnalysis>false</RunCodeAnalysis>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <CustomBuildAfterTargets>
+    </CustomBuildAfterTargets>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">
     <CustomBuildAfterTargets />
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -372,10 +486,276 @@
       </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
+  <!-- ===================================================================
+       Win32 (32-bit) configurations. Link against Libraries\win32\FMWrapper.lib
+       (current-era Plug-In SDK, x86 build) rather than Libraries\fm11-sdk -
+       that older, ABI-incompatible SDK is only needed if targeting FileMaker
+       Pro 11 hosts specifically; see Libraries\fm11-sdk\README notes.
+
+       AdditionalDependencies below is copied verbatim from the x64 configs:
+       almost none of those ~90 third-party static libs currently have a
+       win32 build (only FMWrapper.lib does). The compile step will succeed;
+       the link step will fail until 32-bit .lib files for iconv, libxml2,
+       libxslt, libcurl, OpenSSL, libssh2, turbojpeg, freetype, podofo,
+       libheif/libde265, libpng, openjp2 and the ImageMagick CORE_* family
+       are built and placed in Libraries\win32. This mirrors the exact
+       dependency set Goya themselves dropped in the Oct 2016 32-bit removal
+       (see git history: e1fe08f9 / 089b0c77 / 76052775).
+       =================================================================== -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Midl>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>.\BaseElementsData/BaseElements.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>..\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WINVER=0x0601;_WIN32_WINNT=0x0601;NDEBUG;_WINDOWS;_USRDLL;CURL_STATICLIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4068</DisableSpecificWarnings>
+      <UndefinePreprocessorDefinitions>
+      </UndefinePreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0c09</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmt.lib;iconv.lib;libxml2.lib;libxslt_a.lib;libexslt_a.lib;libcurl.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;libcrypto_static.lib;libssl_static.lib;comctl32.lib;libssh2.lib;turbojpeg-static.lib;freetype.lib;podofo.lib;iphlpapi.lib;heif.lib;libde265.lib;libpng16.lib;openjp2.lib;CORE_RL_zlib_.lib;CORE_RL_aom_.lib;CORE_RL_brotli_.lib;CORE_RL_bzlib_.lib;CORE_RL_cairo_.lib;CORE_RL_coders_.lib;CORE_RL_croco_.lib;CORE_RL_exr_.lib;CORE_RL_ffi_.lib;CORE_RL_filters_.lib;CORE_RL_freetype_.lib;CORE_RL_fribidi_.lib;CORE_RL_glib_.lib;CORE_RL_harfbuzz_.lib;CORE_RL_highway_.lib;CORE_RL_jp2_.lib;CORE_RL_jpeg-turbo_.lib;CORE_RL_jpeg-xl_.lib;CORE_RL_lcms_.lib;CORE_RL_libde265_.lib;CORE_RL_libheif_.lib;CORE_RL_liblzma_.lib;CORE_RL_libraw_.lib;CORE_RL_librsvg_.lib;CORE_RL_libxml_.lib;CORE_RL_libzip_.lib;CORE_RL_lqr_.lib;CORE_RL_Magick++_.lib;CORE_RL_MagickCore_.lib;CORE_RL_MagickWand_.lib;CORE_RL_openjpeg_.lib;CORE_RL_pango_.lib;CORE_RL_pixman_.lib;CORE_RL_png_.lib;CORE_RL_raqm_.lib;CORE_RL_tiff_.lib;CORE_RL_webp_.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>..\Libraries\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ImportLibrary>$(IntDir)$(ProjectName).lib</ImportLibrary>
+      <IgnoreSpecificDefaultLibraries>libcmtd.lib;libcmt.lib;msvcrt.lib;msvcrtd.lib</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>No</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <DelayLoadDLLs>FMWrapper.dll</DelayLoadDLLs>
+    </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='PRO Release|Win32'">
+    <Midl>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>.\BaseElementsData/BaseElements.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>..\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>BEP_PRO_VERSION=1;WINVER=0x0601;_WIN32_WINNT=0x0601;NDEBUG;_WINDOWS;_USRDLL;CURL_STATICLIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4068</DisableSpecificWarnings>
+      <UndefinePreprocessorDefinitions>
+      </UndefinePreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0c09</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmt.lib;iconv.lib;libxml2.lib;libxslt_a.lib;libexslt_a.lib;libcurl.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;libcrypto_static.lib;libssl_static.lib;comctl32.lib;libssh2.lib;turbojpeg-static.lib;freetype.lib;podofo.lib;iphlpapi.lib;heif.lib;libde265.lib;libpng16.lib;openjp2.lib;CORE_RL_zlib_.lib;CORE_RL_aom_.lib;CORE_RL_brotli_.lib;CORE_RL_bzlib_.lib;CORE_RL_cairo_.lib;CORE_RL_coders_.lib;CORE_RL_croco_.lib;CORE_RL_exr_.lib;CORE_RL_ffi_.lib;CORE_RL_filters_.lib;CORE_RL_freetype_.lib;CORE_RL_fribidi_.lib;CORE_RL_glib_.lib;CORE_RL_harfbuzz_.lib;CORE_RL_highway_.lib;CORE_RL_jp2_.lib;CORE_RL_jpeg-turbo_.lib;CORE_RL_jpeg-xl_.lib;CORE_RL_lcms_.lib;CORE_RL_libde265_.lib;CORE_RL_libheif_.lib;CORE_RL_liblzma_.lib;CORE_RL_libraw_.lib;CORE_RL_librsvg_.lib;CORE_RL_libxml_.lib;CORE_RL_libzip_.lib;CORE_RL_lqr_.lib;CORE_RL_Magick++_.lib;CORE_RL_MagickCore_.lib;CORE_RL_MagickWand_.lib;CORE_RL_openjpeg_.lib;CORE_RL_pango_.lib;CORE_RL_pixman_.lib;CORE_RL_png_.lib;CORE_RL_raqm_.lib;CORE_RL_tiff_.lib;CORE_RL_webp_.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>..\Libraries\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <ImportLibrary>$(IntDir)$(ProjectName).lib</ImportLibrary>
+      <IgnoreSpecificDefaultLibraries>libcmtd.lib;libcmt.lib;msvcrt.lib;msvcrtd.lib</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>No</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <DelayLoadDLLs>FMWrapper.dll</DelayLoadDLLs>
+    </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Midl>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>.\BaseElementsDataDebug/BaseElements.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WINVER=0x0601;_WIN32_WINNT=0x0601;_DEBUG;_WINDOWS;_USRDLL;LIBXML_STATIC;CURL_STATICLIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4068;4005;4996</DisableSpecificWarnings>
+      <UndefinePreprocessorDefinitions>
+      </UndefinePreprocessorDefinitions>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <EnablePREfast>false</EnablePREfast>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0c09</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmtd.lib;iconv.lib;libxml2.lib;libxslt_a.lib;libexslt_a.lib;libcurl.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;libcrypto_static.lib;libssl_static.lib;comctl32.lib;libssh2.lib;turbojpeg-static.lib;freetype.lib;podofod.lib;iphlpapi.lib;heif.lib;libde265_d.lib;libpng16.lib;openjp2.lib;CORE_DB_zlib_.lib;CORE_DB_aom_.lib;CORE_DB_brotli_.lib;CORE_DB_bzlib_.lib;CORE_DB_cairo_.lib;CORE_DB_coders_.lib;CORE_DB_croco_.lib;CORE_DB_exr_.lib;CORE_DB_ffi_.lib;CORE_DB_filters_.lib;CORE_DB_freetype_.lib;CORE_DB_fribidi_.lib;CORE_DB_glib_.lib;CORE_DB_harfbuzz_.lib;CORE_DB_highway_.lib;CORE_DB_jp2_.lib;CORE_DB_jpeg-turbo_.lib;CORE_DB_jpeg-xl_.lib;CORE_DB_lcms_.lib;CORE_DB_libde265_.lib;CORE_DB_libheif_.lib;CORE_DB_liblzma_.lib;CORE_DB_libraw_.lib;CORE_DB_librsvg_.lib;CORE_DB_libxml_.lib;CORE_DB_libzip_.lib;CORE_DB_lqr_.lib;CORE_DB_Magick++_.lib;CORE_DB_MagickCore_.lib;CORE_DB_MagickWand_.lib;CORE_DB_openjpeg_.lib;CORE_DB_pango_.lib;CORE_DB_pixman_.lib;CORE_DB_png_.lib;CORE_DB_raqm_.lib;CORE_DB_tiff_.lib;CORE_DB_webp_.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>..\Libraries\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(IntDir)$(ProjectName)D.pdb</ProgramDatabaseFile>
+      <ImportLibrary>$(IntDir)$(ProjectName)D.lib</ImportLibrary>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <AddModuleNamesToAssembly>
+      </AddModuleNamesToAssembly>
+      <IgnoreSpecificDefaultLibraries>msvcrt.lib;msvcrtd.lib;libcmt.lib;libcpmt.lib</IgnoreSpecificDefaultLibraries>
+      <AssemblyLinkResource>
+      </AssemblyLinkResource>
+      <DelayLoadDLLs>FMWrapper.dll</DelayLoadDLLs>
+      <Profile>true</Profile>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
+      <TypeLibraryResourceID>1</TypeLibraryResourceID>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <SupportNobindOfDelayLoadedDLL>
+      </SupportNobindOfDelayLoadedDLL>
+    </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='PRO Debug|Win32'">
+    <Midl>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>.\BaseElementsDataDebug/BaseElements.tlb</TypeLibraryName>
+    </Midl>
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\Headers;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>BEP_PRO_VERSION=1;WINVER=0x0601;_WIN32_WINNT=0x0601;_DEBUG;_WINDOWS;_USRDLL;LIBXML_STATIC;CURL_STATICLIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <PrecompiledHeaderOutputFile>$(IntDir)$(ProjectName).pch</PrecompiledHeaderOutputFile>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ProgramDataBaseFileName>$(IntDir)</ProgramDataBaseFileName>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <CompileAs>Default</CompileAs>
+      <DisableSpecificWarnings>4068;4005;4996</DisableSpecificWarnings>
+      <UndefinePreprocessorDefinitions>
+      </UndefinePreprocessorDefinitions>
+      <TreatWChar_tAsBuiltInType>true</TreatWChar_tAsBuiltInType>
+      <EnablePREfast>false</EnablePREfast>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0c09</Culture>
+    </ResourceCompile>
+    <Link>
+      <AdditionalDependencies>delayimp.lib;FMWrapper.lib;libcmtd.lib;iconv.lib;libxml2.lib;libxslt_a.lib;libexslt_a.lib;libcurl.lib;ws2_32.lib;Crypt32.lib;user32.lib;gdi32.lib;advapi32.lib;wldap32.lib;libcrypto_static.lib;libssl_static.lib;comctl32.lib;libssh2.lib;turbojpeg-static.lib;freetype.lib;podofod.lib;iphlpapi.lib;heif.lib;libde265_d.lib;libpng16.lib;openjp2.lib;CORE_DB_zlib_.lib;CORE_DB_aom_.lib;CORE_DB_brotli_.lib;CORE_DB_bzlib_.lib;CORE_DB_cairo_.lib;CORE_DB_coders_.lib;CORE_DB_croco_.lib;CORE_DB_exr_.lib;CORE_DB_ffi_.lib;CORE_DB_filters_.lib;CORE_DB_freetype_.lib;CORE_DB_fribidi_.lib;CORE_DB_glib_.lib;CORE_DB_harfbuzz_.lib;CORE_DB_highway_.lib;CORE_DB_jp2_.lib;CORE_DB_jpeg-turbo_.lib;CORE_DB_jpeg-xl_.lib;CORE_DB_lcms_.lib;CORE_DB_libde265_.lib;CORE_DB_libheif_.lib;CORE_DB_liblzma_.lib;CORE_DB_libraw_.lib;CORE_DB_librsvg_.lib;CORE_DB_libxml_.lib;CORE_DB_libzip_.lib;CORE_DB_lqr_.lib;CORE_DB_Magick++_.lib;CORE_DB_MagickCore_.lib;CORE_DB_MagickWand_.lib;CORE_DB_openjpeg_.lib;CORE_DB_pango_.lib;CORE_DB_pixman_.lib;CORE_DB_png_.lib;CORE_DB_raqm_.lib;CORE_DB_tiff_.lib;CORE_DB_webp_.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <AdditionalLibraryDirectories>..\Libraries\win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(IntDir)$(ProjectName)D.pdb</ProgramDatabaseFile>
+      <ImportLibrary>$(IntDir)$(ProjectName)D.lib</ImportLibrary>
+      <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <AddModuleNamesToAssembly>
+      </AddModuleNamesToAssembly>
+      <IgnoreSpecificDefaultLibraries>msvcrt.lib;msvcrtd.lib;libcmt.lib;libcpmt.lib</IgnoreSpecificDefaultLibraries>
+      <AssemblyLinkResource>
+      </AssemblyLinkResource>
+      <DelayLoadDLLs>FMWrapper.dll</DelayLoadDLLs>
+      <Profile>true</Profile>
+      <EntryPointSymbol>
+      </EntryPointSymbol>
+      <TypeLibraryResourceID>1</TypeLibraryResourceID>
+      <ProfileGuidedDatabase>$(IntDir)$(TargetName).pgd</ProfileGuidedDatabase>
+      <SupportNobindOfDelayLoadedDLL>
+      </SupportNobindOfDelayLoadedDLL>
+    </Link>
+    <CustomBuildStep>
+      <Command>
+      </Command>
+    </CustomBuildStep>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
+    <PreBuildEvent>
+      <Command>
+      </Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Source\BEDebugInformation.cpp" />
     <ClCompile Include="..\Source\BEPDF.cpp" />
-    <ClCompile Include="..\Source\BESystemCommand.cpp" />
+    <ClCompile Include="..\Source\BEShellExec.cpp" />
     <ClCompile Include="..\Source\BETask.cpp" />
     <ClCompile Include="..\Source\BEXMLSchema.cpp" />
     <ClCompile Include="..\Source\Crypto\BEBase64.cpp" />
@@ -450,7 +830,7 @@
     <ClInclude Include="..\Resources\resource_version.h" />
     <ClInclude Include="..\Source\BEDebugInformation.h" />
     <ClInclude Include="..\Source\BEPDF.h" />
-    <ClInclude Include="..\Source\BESystemCommand.h" />
+    <ClInclude Include="..\Source\BEShellExec.h" />
     <ClInclude Include="..\Source\BETask.h" />
     <ClInclude Include="..\Source\BEXMLSchema.h" />
     <ClInclude Include="..\Source\Crypto\BEBase64.h" />
@@ -493,7 +873,6 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\Resources\BaseElements_en.rc" />
-    <ResourceCompile Include="..\Resources\BaseElements_de.rc" />
     <ResourceCompile Include="..\Resources\BEPluginVersion.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

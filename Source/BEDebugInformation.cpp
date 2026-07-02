@@ -93,8 +93,10 @@ const string debug_information ( const ExprEnv& environment ) {
 	Poco::JSON::Object::Ptr filemaker_information = new Poco::JSON::Object();
 	filemaker_information->set ( "Application", g_be_plugin->get_fmx_application() );
 	filemaker_information->set ( "Version", g_be_plugin->get_fmx_application_version() );
-	filemaker_information->set ( "Session ID", environment.SessionID() );
-	filemaker_information->set ( "File ID", environment.FileID() );
+	if ( gFMX_ExternCallPtr->extnVersion >= k150ExtnVersion ) { // FM_ExprEnv_SessionID/FileID are not exported before FMP 15 (API 56)
+		filemaker_information->set ( "Session ID", environment.SessionID() );
+		filemaker_information->set ( "File ID", environment.FileID() );
+	}
 	json->set ( "FileMaker Information", filemaker_information );
 
 	json->set ( "Text Encoding", g_text_encoding );

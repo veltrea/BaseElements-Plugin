@@ -203,9 +203,19 @@ void SetResult ( const std::string& filename, const vector<char>& data, const st
 
 			results.SetBinaryData ( *resultBinary, true );
 
-		} else {
+		} else if ( gFMX_ExternCallPtr->extnVersion >= k120ExtnVersion ) {
 
 			BinaryDataUniquePtr resultBinary ( *file, (FMX_UInt32)output.size(), (void *)output.data() );
+			results.SetBinaryData ( *resultBinary, true );
+
+		} else {
+
+			// FM_BinaryData_Constructor3 is not exported by FMP 11; build the container stream by stream
+
+			BinaryDataUniquePtr resultBinary;
+			resultBinary->AddFNAMData ( *file ); // error =
+			QuadCharUniquePtr file_stream_type ( 'F', 'I', 'L', 'E' );
+			resultBinary->Add ( *file_stream_type, (FMX_UInt32)output.size(), (void *)output.data() ); // error =
 			results.SetBinaryData ( *resultBinary, true );
 
 		}
@@ -963,7 +973,7 @@ errcode ExecuteScript ( const Text& script_name, const Text& file_name, const Da
 			DataUniquePtr name;
 			ExprEnvUniquePtr current_environment;
 			FMX_SetToCurrentEnv ( &(*current_environment) );
-			error = current_environment->EvaluateGetFunction ( fmx::ExprEnv::kGet_FileName, *name );
+			error = EvaluateGetFunctionCompat ( *current_environment, fmx::ExprEnv::kGet_FileName, *name );
 
 			database->SetText ( name->GetAsText() );
 
@@ -1123,11 +1133,51 @@ void set_name_value_pair ( const DataVect& parameters, std::map<std::string, std
 } // set_name_value_pair
 
 
+fmx::errcode EvaluateGetFunctionCompat ( const ExprEnv& environment, const short function_value, Data& result )
+{
+
+	if ( gFMX_ExternCallPtr->extnVersion >= k180ExtnVersion ) {
+		return environment.EvaluateGetFunction ( function_value, result );
+	}
+
+	// FM_ExprEnv_EvaluateGetFunction is not exported before FMP 18 (API 60)
+	// go via the calculation engine instead
+
+	std::string get_function_name;
+
+	switch ( function_value ) {
+
+		case fmx::ExprEnv::kGet_FileName:
+			get_function_name = "FileName";
+			break;
+
+		case fmx::ExprEnv::kGet_AllowAbortState:
+			get_function_name = "AllowAbortState";
+			break;
+
+		case fmx::ExprEnv::kGet_TemporaryPath:
+			get_function_name = "TemporaryPath";
+			break;
+
+		default:
+			return kCommandIsUnavailableError;
+
+	}
+
+	const std::string get_expression = "Get ( " + get_function_name + " )";
+	TextUniquePtr expression;
+	expression->Assign ( get_expression.c_str(), Text::kEncoding_UTF8 );
+
+	return environment.Evaluate ( *expression, result );
+
+} // EvaluateGetFunctionCompat
+
+
 bool AllowUserAbort ( const ExprEnv& environment )
 {
 
 	DataUniquePtr reply;
-	environment.EvaluateGetFunction ( fmx::ExprEnv::kGet_AllowAbortState, *reply ); // auto error =
+	EvaluateGetFunctionCompat ( environment, fmx::ExprEnv::kGet_AllowAbortState, *reply ); // auto error =
 	auto allow_abort = reply->GetAsBoolean();
 
 	return allow_abort;
@@ -1139,7 +1189,7 @@ std::string GetFileMakerTemporaryDirectory ( const ExprEnv& environment )
 {
 
 	DataUniquePtr reply;
-	environment.EvaluateGetFunction ( fmx::ExprEnv::kGet_TemporaryPath, *reply ); // auto error =
+	EvaluateGetFunctionCompat ( environment, fmx::ExprEnv::kGet_TemporaryPath, *reply ); // auto error =
 
 	// we want the filesystem path, not the "filemaker" path
 	auto temporary_path = TextAsUTF8String ( reply->GetAsText() );

@@ -118,6 +118,8 @@ std::string ConvertFileMakerEOLs ( std::string& in );
 
 void set_name_value_pair ( const fmx::DataVect& parameters, std::map<std::string, std::string>& pairs );
 
+fmx::errcode EvaluateGetFunctionCompat ( const fmx::ExprEnv& environment, const short function_value, fmx::Data& result );
+
 bool AllowUserAbort ( const fmx::ExprEnv& environment );
 std::string GetFileMakerTemporaryDirectory ( const fmx::ExprEnv& environment );
 

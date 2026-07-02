@@ -62,8 +62,60 @@ const fmx::errcode BESQLCommand::execute ( const ExprEnv& environment, const boo
 	} else {
 		
 		if ( text_result_wanted ) {
-			
-			error = environment.ExecuteFileSQLTextResult ( *expression, *filename, *parameters, *result, column_separator, row_separator );
+
+			if ( gFMX_ExternCallPtr->extnVersion >= k130ExtnVersion ) {
+
+				error = environment.ExecuteFileSQLTextResult ( *expression, *filename, *parameters, *result, column_separator, row_separator );
+
+			} else {
+
+				// FM_ExprEnv_ExecuteFileSQLTextResult is not exported before FMP 13 (API 54)
+				// assemble the text result from the row data (as the plug-in did prior to v3.3)
+
+				RowVectUniquePtr records_found;
+				error = environment.ExecuteFileSQL ( *expression, *filename, *parameters, *records_found );
+
+				if ( error == kNoError ) {
+
+					TextUniquePtr column_separator_text;
+					if ( column_separator != '\0' ) {
+						column_separator_text->AssignUnicodeWithLength ( &column_separator, 1 );
+					}
+
+					TextUniquePtr row_separator_text;
+					if ( row_separator != '\0' ) {
+						row_separator_text->AssignUnicodeWithLength ( &row_separator, 1 );
+					}
+
+					TextUniquePtr text_result;
+					const FMX_UInt32 number_of_rows = records_found->Size();
+
+					for ( FMX_UInt32 row = 0 ; row < number_of_rows ; ++row ) {
+
+						const DataVect& this_row = records_found->At ( row );
+						const FMX_UInt32 number_of_columns = this_row.Size();
+
+						for ( FMX_UInt32 column = 0 ; column < number_of_columns ; ++column ) {
+
+							text_result->AppendText ( this_row.At ( column ).GetAsText() );
+							if ( column + 1 < number_of_columns ) {
+								text_result->AppendText ( *column_separator_text );
+							}
+
+						}
+
+						if ( row + 1 < number_of_rows ) {
+							text_result->AppendText ( *row_separator_text );
+						}
+
+					}
+
+					LocaleUniquePtr default_locale;
+					result->SetAsText ( *text_result, *default_locale );
+
+				}
+
+			}
 
 		} else {
 		

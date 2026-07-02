@@ -169,7 +169,7 @@
 		<Unit filename="../Source/BEPluginUtilities.cpp" />
 		<Unit filename="../Source/BEQuadChar.cpp" />
 		<Unit filename="../Source/BESQLCommand.cpp" />
-		<Unit filename="../Source/BESystemCommand.cpp" />
+		<Unit filename="../Source/BEShellExec.cpp" />
 		<Unit filename="../Source/BETask.cpp" />
 		<Unit filename="../Source/BETask.h" />
 		<Unit filename="../Source/BETime.cpp" />

@@ -36,8 +36,14 @@
 	// tchar
 	#define _TEXT(x) x
 
-#elif defined _WIN64
+#elif defined _WIN32
 
+	// _WIN32 is defined for BOTH 32-bit and 64-bit Windows, whereas _WIN64 is
+	// defined only for 64-bit. The pre-2016 code used _WIN32 here; when Goya
+	// dropped the 32-bit build (Oct 2016) this branch was narrowed to _WIN64,
+	// which silently routed every 32-bit compile into the #else "Unknown
+	// compiler" path. Restoring _WIN32 re-enables Win32 without affecting
+	// 64-bit builds (they define _WIN32 as well).
 	#define NOMINMAX // boost 1.53 and later break without this defined before including windows.h
 	#include <windows.h> // life comes to an end if this is not included before anything else
 
@@ -63,7 +69,7 @@
 
 #else
 
-   error "Unknown compiler"
+#error "Unknown compiler"
 
 #endif
 
