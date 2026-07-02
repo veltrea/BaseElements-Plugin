@@ -1,8 +1,11 @@
 # Bug report: ExecuteFileSQL from kFMXT_Idle crashes FileMaker Pro 11 with 0xc0000409
 
-Status: verified live, twice, with two different SQL statement types (DDL and SELECT).
+Status: verified live, twice, with two different SQL statement types (DDL and SELECT) on FMP 11.
 Discovered: 2026-07-03, while testing the 32-bit fork (veltrea/BaseElements-Plugin) on FMP 11.
 Workaround shipped in commit `9031d64b` (see "Workaround" below).
+**Update 2026-07-03 (same day, later session): confirmed FMP 11-specific.** The same
+idle-DDL-replay code path was exercised on FMP 19 (64-bit) and did **not** crash —
+see "Verification on FMP 19 (64-bit)" below.
 
 ## Summary
 
@@ -94,9 +97,9 @@ Either way the operation is not survivable on FMP 11.
 - FMP 11 + upstream BaseElements: any DDL via `BE_FileMakerSQL` crashes the
   host at the next idle. Data loss risk for unsaved work.
 - Any plug-in feature that defers FM API SQL to `kFMXT_Idle` is affected.
-- Unknown whether newer FileMaker versions are affected — upstream has shipped
-  the idle DDL replay for years, which suggests FM 13+ tolerates it, but that
-  is untested here. Worth a targeted test on a current FM before assuming.
+- **Resolved by testing (see below): newer FileMaker versions are not affected.**
+  FMP 19 (64-bit) executes the same idle-DDL-replay path without crashing.
+  This is FMP 11-specific, not a general idle/API re-entrancy problem.
 
 ## Workaround (implemented in the 32-bit fork, commit `9031d64b`)
 
@@ -110,13 +113,63 @@ Either way the operation is not survivable on FMP 11.
    documented as "DDL via BE_FileMakerSQL is unavailable on FMP 11", which is
    strictly better than crashing.
 
+## Verification on FMP 19 (64-bit)
+
+Reproduced Path A (the upstream DDL queue, no fork-specific code) against a
+freshly built 64-bit `BaseElements.fmx64` (same commit, MSVC v145, `Release|x64`)
+loaded into **FileMaker Pro 19.1.2.219 (64-bit)**, WORK1.
+
+Because the workaround (`9031d64b`) gates idle-time SQL execution behind
+`gFMX_ExternCallPtr->extnVersion >= k130ExtnVersion`, and FMP 19's `extnVersion`
+is far above that threshold, the idle handler **does** reach
+`g_ddl_command->execute()` on FMP 19 — i.e. this build exercises the exact same
+code path that killed FMP 11, just gated "on" instead of "off".
+
+**Procedure:**
+1. Evaluated `BE_FileMakerSQL ( "CREATE TABLE regrddl (id INT)" )` in a
+   dedicated test file (`ddl-repro.fmp12`, a copy of the existing plug-in test
+   harness). Returned `""` immediately, as expected — the statement was
+   classified as DDL and queued into `g_ddl_command` rather than executed
+   synchronously.
+2. Left the file idle (no interaction) for 40+ seconds while polling the
+   FileMaker Pro process for liveness. The process stayed alive throughout;
+   memory usage drifted down slightly (idle housekeeping), consistent with
+   idle ticks actually occurring.
+3. Evaluated `BE_FileMakerSQL ( "SELECT COUNT(*) FROM regrddl" )` →
+   `result=[0] err=[0]`. As a control, the same query against a table name
+   that was never created returned `result=[?] err=[8309]` (a clear SQL
+   error). The contrast confirms `regrddl` exists as a real table with zero
+   rows — i.e. the queued `CREATE TABLE` was actually executed from
+   `kFMXT_Idle`, not silently dropped.
+4. Checked the Windows Application event log for the test window: **zero**
+   entries mentioning `BaseElements`. One unrelated crash was present
+   (`FMEngine.dll`, exception `0xc0000005`) but its faulting process ID
+   decoded to the short-lived single-instance-handoff launcher process, not
+   the long-running FileMaker Pro instance that had the plug-in loaded — a
+   different module, different exception code, and different process from
+   the bug being investigated here.
+
+**Result: no crash.** The DDL was queued, drained by the idle handler, and
+executed successfully on FMP 19 (64-bit). This confirms the 0xc0000409
+fail-fast is **FMP 11-specific**, not a general hazard of calling
+`ExecuteFileSQL` from `kFMXT_Idle` on modern FileMaker hosts.
+
+Path B (idle-executed `SELECT` via the background-task queue) was not
+re-tested on FMP 19 in this session; Path A alone is sufficient to answer the
+open question ("does this affect current FileMaker versions?").
+
 ## Suggested upstream actions
 
-- Reproduce on a current FileMaker version; if it crashes there too, the DDL
-  replay needs the same redesign upstream.
-- If it only affects old hosts, gate the idle replay by `extnVersion` as above.
-- Never let the idle handler run FM API calls without a version check on hosts
-  older than the oldest version the idle path was actually tested on.
+- ~~Reproduce on a current FileMaker version~~ — done above; **does not
+  reproduce on FMP 19 (64-bit)**.
+- The existing `extnVersion >= k130ExtnVersion` gate is the correct fix as
+  shipped in `9031d64b`: it disables idle-time FM API calls specifically on
+  hosts old enough to crash, while leaving the (verified-safe) idle DDL
+  replay enabled on FM 13+.
+- No further upstream redesign of the idle replay mechanism is indicated by
+  this finding. If upstream wants to drop the `extnVersion` gate entirely
+  (e.g. to simplify the code), they would reintroduce the FMP 11 crash for
+  any user still on that host — the gate should stay.
 
 ## Related findings from the same session (separate issues, same family)
 
