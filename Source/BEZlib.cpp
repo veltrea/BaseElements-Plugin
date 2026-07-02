@@ -222,9 +222,9 @@ const std::vector<char> CompressContainerStream ( const std::vector<char> data )
 	int status = deflateInit2 ( &stream, Z_BEST_COMPRESSION, Z_DEFLATED, 15 + 16, 8, Z_DEFAULT_STRATEGY );
 	if ( status == Z_OK ) {
 
-		unsigned char * output_buffer = new unsigned char [ size_required ];
+		std::vector<unsigned char> output_buffer ( size_required );
 
-		stream.next_out = output_buffer;
+		stream.next_out = output_buffer.data();
 		stream.avail_out = (unsigned int)size_required;
 
 		status = deflate ( &stream, Z_FINISH );
@@ -232,12 +232,10 @@ const std::vector<char> CompressContainerStream ( const std::vector<char> data )
 
 			status = deflateEnd ( &stream );
 			if ( status == Z_OK ) {
-				compressed.assign ( output_buffer, output_buffer + stream.total_out );
+				compressed.assign ( output_buffer.begin(), output_buffer.begin() + stream.total_out );
 			}
 
 		}
-
-		be_free ( output_buffer );
 
 	}
 

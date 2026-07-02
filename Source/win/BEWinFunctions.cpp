@@ -14,8 +14,11 @@
 
 #include <fcntl.h>
 #include <sstream>
+#include <locale>
 
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/detail/utf8_codecvt_facet.hpp>
 
 #include <Poco/Util/WinRegistryKey.h>
 
@@ -32,6 +35,8 @@ const UINT ClipboardFormatIDForName ( const wstring& format_name );
 const bool SafeOpenClipboard ( void );
 const bool IsFileMakerClipboardType ( const wstring& atype );
 const UINT32 ClipboardOffset ( const wstring& atype );
+static const string CodePageToUTF8 ( const string& instr, const UINT codepage );
+static const string UTF8ToCodePage ( const string& instr, const UINT codepage );
 
 
 // functions & globals for the dialog callback
@@ -70,6 +75,10 @@ UINT BE_CF_FileNameMapW;
 void InitialiseForPlatform ( void )
 {
 	_set_fmode ( O_RDONLY | O_BINARY ); // open files as binary by default
+
+	// interpret narrow strings given to (and produced by) boost::filesystem::path as utf-8
+	// rather than the ANSI code page, so utf-8 paths from FileMaker survive the round trip
+	boost::filesystem::path::imbue ( std::locale ( std::locale(), new boost::filesystem::detail::utf8_codecvt_facet() ) );
 
 	BE_CF_FileGroupDescriptorW = RegisterClipboardFormat ( CFSTR_FILEDESCRIPTORW );
 	BE_CF_FileNameW = RegisterClipboardFormat ( CFSTR_FILENAMEW );
@@ -451,6 +460,12 @@ const string ClipboardText ( const wstring& atype )
 				reply = WideClipboardData ( atype );
 			} else {
 				reply = UTF8ClipboardData ( atype );
+				// CF_TEXT / CF_OEMTEXT hold text in the local ANSI / OEM code page, not utf-8
+				if ( CF_TEXT == format ) {
+					reply = CodePageToUTF8 ( reply, CP_ACP );
+				} else if ( CF_OEMTEXT == format ) {
+					reply = CodePageToUTF8 ( reply, CP_OEMCP );
+				}
 			}
 
 		}
@@ -481,10 +496,11 @@ HGLOBAL DataForClipboardAsUTF8 ( const string& data, const wstring& atype )
 	unsigned char * clipboard_contents = (unsigned char *)GlobalLock ( clipboard_memory );
 
 	if ( IsFileMakerClipboardType ( atype ) == TRUE ) {
-		memcpy_s ( clipboard_contents, offset, &data_size, offset );
+		const UINT32 size_prefix = (UINT32)data_size;
+		memcpy_s ( clipboard_contents, offset, &size_prefix, sizeof ( size_prefix ) );
 	}
 
-	memcpy_s ( clipboard_contents + offset, clipboard_size, data.c_str(), clipboard_size );
+	memcpy_s ( clipboard_contents + offset, data_size, data.c_str(), data_size ); // was clipboard_size: wrote (and read) offset bytes past the end
 
 	GlobalUnlock ( clipboard_memory );
 
@@ -527,6 +543,11 @@ const bool SetClipboardText ( const string& data, const wstring& atype )
 
 			if ( IsUnicodeFormat ( format ) ) {
 				clipboard_memory = DataForClipboardAsWide ( data );
+			} else if ( CF_TEXT == format || CF_OEMTEXT == format ) {
+				// convert utf-8 to the code page the format promises, and NUL-terminate
+				string in_code_page = UTF8ToCodePage ( data, ( CF_TEXT == format ) ? CP_ACP : CP_OEMCP );
+				in_code_page.push_back ( '\0' );
+				clipboard_memory = DataForClipboardAsUTF8 ( in_code_page, atype );
 			} else {
 				clipboard_memory = DataForClipboardAsUTF8 ( data, atype );
 			}
@@ -1001,6 +1022,43 @@ const string utf16ToUTF8 ( const wstring& s )
 }
 
 
+static const string CodePageToUTF8 ( const string& instr, const UINT codepage )
+{
+	if ( instr.empty() ) {
+		return instr;
+	}
+
+	const int wide_length = MultiByteToWideChar ( codepage, 0, instr.c_str(), (int)instr.size(), NULL, 0 );
+	if ( wide_length <= 0 ) {
+		return instr;
+	}
+
+	wstring wide ( (size_t)wide_length, 0 );
+	MultiByteToWideChar ( codepage, 0, instr.c_str(), (int)instr.size(), &wide[0], wide_length );
+
+	return utf16ToUTF8 ( wide );
+}
+
+
+static const string UTF8ToCodePage ( const string& instr, const UINT codepage )
+{
+	if ( instr.empty() ) {
+		return instr;
+	}
+
+	const wstring wide = utf8toutf16 ( instr );
+	const int narrow_length = WideCharToMultiByte ( codepage, 0, wide.c_str(), (int)wide.size(), NULL, 0, NULL, NULL );
+	if ( narrow_length <= 0 ) {
+		return instr;
+	}
+
+	string narrow ( (size_t)narrow_length, 0 );
+	WideCharToMultiByte ( codepage, 0, wide.c_str(), (int)wide.size(), &narrow[0], narrow_length, NULL, NULL );
+
+	return narrow;
+}
+
+
 const unsigned long Sub_LoadString ( unsigned long stringID, FMX_Unichar* intoHere, long resultsize )
 {
 	unsigned long returnResult = 0;
@@ -1009,10 +1067,15 @@ const unsigned long Sub_LoadString ( unsigned long stringID, FMX_Unichar* intoHe
 
 	if (kFMXT_AppConfigStr == stringID || PLUGIN_DESCRIPTION_STRING_ID == stringID) {
 		std::wstring plugin_description_string = (LPWSTR)intoHere;
-		plugin_description_string.replace(plugin_description_string.find(L"%@"), 2, WSTRING(VERSION_STRING));
+		const auto placeholder = plugin_description_string.find(L"%@");
+		if (placeholder != std::wstring::npos) {
+			plugin_description_string.replace(placeholder, 2, WSTRING(VERSION_STRING));
+		}
 		boost::replace_all(plugin_description_string, L"\n", L"\r\n");
-		plugin_description_string.copy((WCHAR*)intoHere, plugin_description_string.length(), 0);
-		intoHere[plugin_description_string.length()] = '\0';
+		// the replacements grow the string: clamp to the caller's buffer
+		const size_t copy_maximum = resultsize > 0 ? (size_t)resultsize - 1 : 0;
+		const size_t copied = plugin_description_string.copy((WCHAR*)intoHere, (std::min)(plugin_description_string.length(), copy_maximum), 0);
+		intoHere[copied] = '\0';
 	}
 
 	return returnResult;

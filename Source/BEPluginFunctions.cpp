@@ -853,7 +853,7 @@ FMX_PROC(fmx::errcode) BE_FilePatternCount ( short /* funcId */, const ExprEnv& 
 					boost::filesystem::path text_file_path ( *it );
 					text_file_path.make_preferred();
 					auto hay = ReadFileAsUTF8 ( text_file_path );
-					std::transform ( hay.begin(), hay.end(), hay.begin(), ::tolower ); // case insensitive
+					std::transform ( hay.begin(), hay.end(), hay.begin(), [](unsigned char c){ return (char)::tolower ( c ); } ); // case insensitive; unsigned char avoids UB on utf-8 bytes
 					haystack.push_back ( hay );
 
 				}

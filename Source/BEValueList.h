@@ -445,7 +445,8 @@ void BEValueList<T>::to_lower ( void )
 {
 	
 	for ( typename std::vector<T>::iterator it = values.begin() ; it != values.end(); ++it ) {
-		std::transform ( it->begin(), it->end(), it->begin(), ::tolower );
+		// cast via unsigned char: passing negative char values (utf-8 bytes) to ::tolower is undefined behaviour
+		std::transform ( it->begin(), it->end(), it->begin(), [](unsigned char c){ return (char)::tolower ( c ); } );
 	}
 	
 } // to_lower
