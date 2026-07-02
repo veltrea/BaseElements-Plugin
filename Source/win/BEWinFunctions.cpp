@@ -59,9 +59,12 @@ thread_local IProgressDialog * progress_dialog;
 thread_local DWORD progress_dialog_maximum;
 
 // undocumented/private(?) system clipboard formats
-thread_local UINT BE_CF_FileGroupDescriptorW;
-thread_local UINT BE_CF_FileNameW;
-thread_local UINT BE_CF_FileNameMapW;
+// process-wide constants: registered once in InitialiseForPlatform and never
+// modified afterwards, so they must not be thread_local (other threads would
+// see 0 and misclassify wide formats as narrow)
+UINT BE_CF_FileGroupDescriptorW;
+UINT BE_CF_FileNameW;
+UINT BE_CF_FileNameMapW;
 
 
 void InitialiseForPlatform ( void )
@@ -70,7 +73,7 @@ void InitialiseForPlatform ( void )
 
 	BE_CF_FileGroupDescriptorW = RegisterClipboardFormat ( CFSTR_FILEDESCRIPTORW );
 	BE_CF_FileNameW = RegisterClipboardFormat ( CFSTR_FILENAMEW );
-	BE_CF_FileNameMapW = RegisterClipboardFormat ( CFSTR_FILEDESCRIPTORW );
+	BE_CF_FileNameMapW = RegisterClipboardFormat ( CFSTR_FILENAMEMAPW );
 }
 
 

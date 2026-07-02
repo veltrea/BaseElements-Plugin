@@ -31,8 +31,8 @@ BESQLCommand::BESQLCommand ( const Text& _expression, const Text& _filename )
 
 BESQLCommand::BESQLCommand ( const std::string& _expression, const std::string& _filename )
 {
-	expression->Assign ( _expression.c_str() );
-	filename->Assign ( _filename.c_str() );
+	expression->Assign ( _expression.c_str(), fmx::Text::kEncoding_UTF8 );
+	filename->Assign ( _filename.c_str(), fmx::Text::kEncoding_UTF8 );
 }
 
 

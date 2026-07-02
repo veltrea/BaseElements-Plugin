@@ -136,7 +136,7 @@ BECurlOption::BECurlOptionType BECurlOption::type ( )
 	types [ "CURLOPT_COOKIEFILE" ] = type_string;
 	types [ "CURLOPT_COOKIEJAR" ] = type_string;
 	types [ "CURLOPT_COOKIELIST" ] = type_string;
-	types [ "CURLOPT_HTTPGET" ] = type_string;
+	types [ "CURLOPT_HTTPGET" ] = type_long;
 	types [ "CURLOPT_MAIL_FROM" ] = type_string;
 	types [ "CURLOPT_MAIL_AUTH" ] = type_string;
 	types [ "CURLOPT_FTPPORT" ] = type_string;
@@ -195,7 +195,7 @@ BECurlOption::BECurlOptionType BECurlOption::type ( )
 	types [ "CURLOPT_TCP_KEEPINTVL" ] = type_long;
 	types [ "CURLOPT_NETRC" ] = type_long;
 	types [ "CURLOPT_HTTPAUTH" ] = type_named_constant;
-	types [ "CURLOPT_TLSAUTH_TYPE" ] = type_long;
+	types [ "CURLOPT_TLSAUTH_TYPE" ] = type_string;
 	types [ "CURLOPT_PROXYAUTH" ] = type_named_constant;
 	types [ "CURLOPT_AUTOREFERER" ] = type_long;
 	types [ "CURLOPT_TRANSFER_ENCODING" ] = type_long;

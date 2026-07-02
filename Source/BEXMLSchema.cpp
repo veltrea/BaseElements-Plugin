@@ -71,7 +71,7 @@ const std::string validate_xml ( const std::string xml, const std::string schema
 	xmlLoadExtDtdDefaultValue = 1;
 	xmlLineNumbersDefault ( 1 );
 
-	const int options = XML_PARSE_HUGE;
+	const int options = XML_PARSE_HUGE | XML_PARSE_IGNORE_ENC; // input is always UTF-8 from FileMaker
 
 	xmlDocPtr schema_document = xmlReadDoc ( (xmlChar *)schema.c_str(), NULL, NULL, options );
 
@@ -124,7 +124,7 @@ const std::string canonical_xml ( const std::string xml )
 	xmlLoadExtDtdDefaultValue = XML_DETECT_IDS | XML_COMPLETE_ATTRS;
 	xmlLineNumbersDefault ( 1 );
 
-	const int options = XML_PARSE_HUGE;
+	const int options = XML_PARSE_HUGE | XML_PARSE_IGNORE_ENC; // input is always UTF-8 from FileMaker
 
 	xmlDocPtr xml_document = xmlReadDoc ( (xmlChar *) xml.c_str(), NULL, NULL, options );
 

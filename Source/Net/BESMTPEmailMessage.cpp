@@ -143,8 +143,7 @@ void BESMTPEmailMessage::add_attachments ( )
 			auto attachment = new_attachment.first;
 			attachment.make_preferred();
 			auto file_name = Poco::Net::MailMessage::encodeWord ( attachment.filename().string() );
-			auto path = Poco::Net::MailMessage::encodeWord ( attachment.string() );
-			message.addAttachment ( file_name, new Poco::Net::FilePartSource ( path, new_attachment.second ) );
+			message.addAttachment ( file_name, new Poco::Net::FilePartSource ( attachment.string(), new_attachment.second ) );
 			
 		} else {
 			throw BEPlugin_Exception ( kNoSuchFileOrDirectoryError );

@@ -101,7 +101,7 @@ static duk_ret_t BE_Evaluate_FileMaker_Calculation ( duk_context *context )
 	std::string calculation = duk_require_string ( context, 0 );
 
 	fmx::TextUniquePtr command;
-	command->Assign ( calculation.c_str() );
+	command->Assign ( calculation.c_str(), fmx::Text::kEncoding_UTF8 );
 
 	fmx::DataUniquePtr result;
 	const fmx::ExprEnvUniquePtr environment;
