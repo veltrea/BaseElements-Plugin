@@ -66,6 +66,20 @@ using namespace boost::filesystem;
 #define SFTP_SCHEME "sftp";
 
 
+// see BECurl.h - keeps the libcurl global-init refcount above zero while the
+// plug-in is loaded
+
+void AcquireCurlGlobalReference ( void )
+{
+	curl_global_init ( CURL_GLOBAL_ALL );
+}
+
+void ReleaseCurlGlobalReference ( void )
+{
+	curl_global_cleanup();
+}
+
+
 #pragma mark -
 #pragma mark Globals
 #pragma mark -

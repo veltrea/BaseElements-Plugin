@@ -41,6 +41,7 @@
 #include "BESQLCommand.h"
 #include "BEXSLT.h"
 #include "Crypto/BEMessageDigest.h"
+#include "Net/BECurl.h"
 
 #ifdef FMX_MAC_TARGET
 	#include "apple/BEMacFunctions.h"
@@ -87,6 +88,7 @@ static FMX_Int32 LoadPlugin ( FMX_ExternCallPtr plugin_call )
 
 	InitialiseForPlatform ( );
 	InitialiseLibXSLT();
+	AcquireCurlGlobalReference(); // released in UnloadPlugin
 
 
 	QuadCharUniquePtr plugin_id ( PLUGIN_ID );
@@ -389,6 +391,7 @@ static void UnloadPlugin ( void ) {
 #endif
 
 	CleanupLibXSLT();
+	ReleaseCurlGlobalReference();
 
 	delete g_be_plugin;	// un-register the plugin functions
 
