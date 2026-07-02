@@ -1,8 +1,42 @@
 # BaseElements Plugin 32bit 復活 — 次セッションへのハンドオーバー・プロンプト
 
-（このファイルをそのまま次セッションの最初のプロンプトに貼ってよい。日本語で応答すること。ユーザーに休息・中断を促さないこと。git author は必ず `-c user.name="veltrea" -c user.email="<GIT_EMAIL>"` を明示。）
-
 （プレースホルダ凡例: `<USER>` = WORK1 の対話ログオンユーザー / `<ADMIN>` = WORK1 の管理・ビルド用ユーザー / `<PORT>` = fmd11 デーモンの待受ポート / `<SSH_KEY>` = WORK1 用 SSH 鍵パス / `<GIT_EMAIL>` = git コミット用メールアドレス / `<N>` = 動的ポート数の設定値。実値はローカルの `~/.claude/machines.local.env`・`~/.claude/CLAUDE.md`・メモリ `be-plugin-daemon-test` を参照。）
+
+## 次セッション（SESSION 10）開始プロンプト — 以下をそのまま貼る
+
+```
+BaseElements Plugin 32bit フォークの継続セッション。日本語で応答すること。
+
+まず以下を読んで文脈を復元:
+1. リポジトリの HANDOVER-32bit.md（/Volumes/2TB_USB/dev/filemaker-plugin/BaseElements-Plugin/BaseElements-Plugin/HANDOVER-32bit.md）の SESSION 9 セクション
+2. メモリ be-plugin-audit-fixes / be-plugin-magick-helper / be-plugin-daemon-test
+
+現状: 監査の Win 実害系は SESSION 9 で全て修正済み（Batch 1〜5 + M-25、
+origin/main = 631d7637 まで push 済み・未 push なし、FMP11 実機回帰オールグリーン）。
+重大発見「FMP11 は kFMXT_Idle からの ExecuteFileSQL で 0xc0000409 死」は
+BUGREPORT-fmp11-idle-executefilesql.md（repo ルート、英語・上流 issue 用）に整理済み。
+
+今回のタスク: 上流還元の準備。着手順:
+  1. BUGREPORT-fmp11-idle-executefilesql.md をレビューし、上流へ出す形に確定
+     （必要なら現行 FM での再現確認。WORK1 に FMP19(64bit) はあるが 32bit .fmx は
+     ロード不可 → 検証するなら x64 ビルドが必要。やるかはユーザーに確認）
+  2. 上流 PR の切り出し: PRO 限定登録解除（ContainerConvertImage + BackgroundTask 系）
+     / H-3 サロゲート合成 + BUF#2/#3（mac/Linux）/ LIBICONV_PLUG の知見
+  3. （任意）belibs.dll から MagickCore/Wand/libpng16/turbojpeg/freetype を抜いて
+     再生成（mkbelibs.sh）→ DLL 減量。プラグインはもう Magick シンボルを参照しない
+  4. リポジトリ整理（Libraries/win32・fm11-sdk の管理方針はユーザー判断待ちのまま）
+
+進め方の約束:
+- 修正はまず Mac 側ソース（正本）を編集 → mssh put で WORK1 に転送 → build32.bat
+  → FMP 終了は loophole_menu の id=57665 → .fmx copy → schtasks /run /tn fmpstart
+- 修正のたびに fmd11 デーモンで実機回帰（回帰式と期待値は HANDOVER の SESSION 9 参照。
+  /next を curl で直接叩かない = キューのジョブを食べる）
+- 日本語コメントを書く Source ファイルは UTF-8 BOM 必須。BOM なしファイルに書く
+  コメントは em-dash 等も含めピュア ASCII にする（cl.exe の CP932 解釈対策）
+- WORK1 が落ちていたら ~/.claude/bin/wake work1 → 復旧手順はメモリ be-plugin-daemon-test
+- git commit は必ず -c で veltrea identity を明示（~/.claude/CLAUDE.md の規則どおり）
+- 検証が通った単位でコミットし、セッション末に HANDOVER-32bit.md を更新して push
+```
 
 ---
 
@@ -28,6 +62,12 @@
 - **Win 実害系は全て修正済み**（H 群 + M-1〜M-17 + M-20 + M-23〜M-30 + BUF#1/#5〜#11）。
 - 残り: M-18/M-19（Linux）、M-21/M-22（mac）、H-3 + BUF#2/#3（mac/Linux Sub_LoadString・サロゲート）、L-1〜L-20 + BUF#12〜16（低）。→ **上流 PR 検討**とセットで。
 - 上流 PR ネタ: PRO 限定登録問題（ContainerConvertImage + BackgroundTask 系）/ FMP11 idle-SQL クラッシュ（新しい FM でも要検証）/ LIBICONV_PLUG の知見 / H-3。
+
+## 次タスク（本命）: 上流還元の準備
+1. **バグレポート確定**: `BUGREPORT-fmp11-idle-executefilesql.md`（repo ルート、英語・上流 issue 用に整理済み）をレビューして提出形にする。再現手順・イベントログ実測値・切り分け（同じ SQL が通常の関数呼び出しコンテキストでは正常）・フォークでの回避策（k130 版ゲート + Add/List でのポーリング刈り取り）まで記載済み。**未確定点 = 現行 FM で再現するか**。WORK1 に FMP19（64bit、`C:\Program Files\FileMaker\FileMaker Pro 19`）はあるが 32bit .fmx はロード不可 → 検証するなら x64 ビルドが必要（やるかはユーザー判断）。
+2. **上流 PR の切り出し**: PRO 限定登録解除 ×2 / H-3 + BUF#2/#3 / LIBICONV_PLUG。
+3. （任意）belibs.dll の Magick 系除去による減量（mkbelibs.sh 再実行）。
+4. リポジトリ整理（Libraries/win32・fm11-sdk = ユーザー判断待ち）→ FMP12+ 対応・配布。
 
 ## 回帰式（job.json 形式・fmd11 デーモン投入用。SESSION 9 の最終形）
 ```
