@@ -6,6 +6,50 @@
 
 ---
 
+# 🟢 SESSION 7 最終状態（2026-07-03 未明〜） — ①監査 Batch 3 完了（変換失敗の明示エラー化・NUL保持・curl型ディスパッチ、実機検証済・push済）②iconv errno 境界問題を発見し LIBICONV_PLUG で根治③主要機能の実弾検証完了（不合格は BE_ContainerConvertImage のみ）
+
+**⚠️ 最新の確定状態。詳細メモリ: `be-plugin-audit-fixes`（Batch3全記録）/ `be-plugin-belibs-isolation`（iconv errno境界の発見と修正）/ `be-plugin-livefire-results`（実弾検証の全結果）。このハンドオーバーを貼らなくてもメモリで文脈復元可能。**
+
+## 達成（確定・全て origin/main へ push 済み）
+1. **監査 Batch 3 = commit `d6b40dee`**（FMP11実機検証済み）:
+   - H-1/H-10/M-3/M-4: ConvertTextEncoding 再設計 — UTF-16 無条件フォールバック廃止→**BOM検出**（UTF-8/UTF-16LE/BE、BOM分スキップ）、全候補失敗で **kTextEncodingConversionError=10101** を throw。ReadFileAsUTF8 のヒープ外リード削除。
+   - H-2: SetResult を AssignWithLength 化 — **FMP11 は U+0000 を保持する**（A␀B→Length=3 実証）。
+   - M-7: easy_setopt を CURLOPTTYPE_{BLOB,OFF_T,OBJECTPOINT,LONG} で型別ディスパッチ + 呼び出し側を _LARGE/(long) に正規化。
+2. **iconv errno 境界問題の発見と根治**（今セッションの白眉、詳細=メモリ be-plugin-belibs-isolation）:
+   - `Headers/iconv/iconv.h`(GNU) が `iconv_*→libiconv_*` にリネーム → winiconv.lib でなく **belibs.dll 内の mingw GNU libiconv に解決** → mingw 側 errno は別 CRT でプラグインからは常に 0 → **変換失敗が「空結果・エラー0」に消えていた**。
+   - vcxproj の Release|Win32 / PRO Release|Win32 に **LIBICONV_PLUG** を定義して根治（plain 名になり winiconv.lib=MSVC /MT に解決）。検証ハーネス: WORK1 `C:\dev\testdata\iconvtest.cpp` + `build_iconvtest.bat`。
+3. **主要機能の実弾検証**（詳細=メモリ be-plugin-livefire-results）:
+   - **合格**: BE_EncryptAES/DecryptAES（日本語往復）/ BE_CipherEncrypt/Decrypt（AES-256-CBC hex 往復・先頭00保持）/ BE_PDFPageCount/GetPages/Append（2→1→4ページ）/ **BE_FileMakerSQL（FMP11 の Experimental な FM_ExprEnv_ExecuteFileSQL が実際に動く）** / BE_ConvertContainer（PNGf 変換往復で SHA256 完全一致、curl の file:// も有効）
+   - **仕様**: BE_JSON_jq は Windows で BE_NotImplemented 登録（err=3）。
+   - **不合格（唯一）**: **BE_ContainerConvertImage** — 下記「次タスク」参照。
+
+## commit / push 状態
+- **未 push なし**。origin/main = `d6b40dee`（7793d1b9 / 02df26ef / 62675de2 / 11969036=文書 / d6b40dee=Batch3）。
+- HANDOVER-32bit.md / ENCODING-AUDIT.md / BUFFER-AUDIT.md は **repo ルートに移動済み**（機微情報はプレースホルダ化済み）。
+- 未追跡: `Libraries/fm11-sdk/` `Libraries/win32/`（管理方針は引き続きユーザー判断待ち）。
+
+## 環境（セッション終了時点）
+- WORK1 稼働中・FMP11 起動済み（fmtest.fp7、レコード30件超）・fmd11 デーモン稼働中。
+- **submit は loophole 経由が安定**: `loophole_write_file` で `C:\dev\testdata\job.json` に `{"input":"<FM式>"}` を書き → `loophole_shell` で `curl.exe -s -X POST --data-binary @C:\dev\testdata\job.json http://127.0.0.1:<PORT>/jobs` → `loophole_menu invoke command_id=50157`（新規レコード）→ `curl /result/job-N` 回収。**mssh の exec は連投すると "exec request failed on channel 0" で不安定になる**（sshd の抑制。間隔を空ければ復帰）。
+- テスト資材: `C:\dev\testdata\`（two.pdf=自作2ページ / tiny.png=1x1 / cp932.txt / utf16le_bom.txt / nul_utf8.txt=A␀B / iconvtest.cpp）。
+
+## 次タスク（本命）: MagickCore/Wand を MSVC /MT で静的化して belibs から出す（BE_ContainerConvertImage 根治）
+- **症状**: BE_ContainerConvertImage を呼ぶと FM の式評価が丸ごと中断して式全体が `?`（正常系も異常系も。関数内の catch(Magick::Exception&) に到達せず、AV を FMP11 の SEH が握りつぶす挙動）。FMP は落ちない。影響はこの1関数のみ。
+- **現構成の問題**: MagickCore/Wand=mingw（belibs.dll 内、pthread 有効）+ Magick++ だけ MSVC /MT 再コンパイル（**MAGICKCORE_HAVE_PTHREAD 無効化＝CORE と設定不一致でヘッダ内構造体レイアウトが食い違う疑い**）。
+- **方針**（XPath 根治 = be-plugin-xml-msvc-static と同型）:
+  1. ImageMagick 7.1.1-29 を **公式 Windows ビルド系（VisualMagick configure.exe）か CMake** で x86 static /MT ビルド（Quantum16+HDRI — `BEPluginGlobalDefines.h` の `MAGICKCORE_QUANTUM_DEPTH 16` / `MAGICKCORE_HDRI_ENABLE 1` と一致させること）。delegates は png/jpeg(turbojpeg)/freetype/zlib で十分（現行と同等）。ソースは WORK1 `C:\dev\lib32-work\src\` 配下（無ければ取得）。
+  2. Magick++ も同じ configure から MSVC /MT でビルド（**CORE と config を完全一致**させる。現行の msvc_shim.h ハックは不要になるはず）。
+  3. vcxproj の Magick++.lib を新しい静的 lib 群に差し替え。belibs.dll は当面そのまま（MagickCore/Wand の export が残っても未参照なら無害）。余裕があれば belibs から Magick 系を抜いて再生成（mkbelibs.sh、[[be-plugin-belibs-isolation]] 参照）→ DLL が大幅に痩せる。
+  4. 検証: tiny.png→JPEG 変換→BE_ExportFieldContents→デコード確認（ImageMagick なので出力はバイト非決定でもよい、JPEG マジックナンバー FF D8 と再 PageCount 的な整合で判定）+ 異常系（cp932.txt を食わせて err が明示エラーになること）+ 既存全回帰（XPath/HTTP/FileWriteText/Cipher/PDF/SQL）。
+- **保険**: MSVC 化が難航したら暫定で Win32 の BE_ContainerConvertImage を BE_NotImplemented 登録に変えて「静かな評価中断」を「明示エラー」にする（1行、BEPlugin.cpp の jq と同じパターン）。
+
+## その後の残作業（優先順）
+1. 監査 Batch 4: H-3（mac/Linux のサロゲート合成）+ M/L 群 + upstream PR 検討（LIBICONV_PLUG の知見は本家 x64 にも刺さる可能性）
+2. リポジトリ整理（Libraries/win32・fm11-sdk・WORK1 ビルドスクリプトの管理方針）
+3. FMP12+ 対応・配布
+
+---
+
 # 🟢 SESSION 6 最終状態（2026-07-03 0:30頃） — ①BE_XPath 根治完了（XMLスタック MSVC静的化）②文字列/メモリ監査の高優先バグ修正 Batch1+2 完了（日本語パス実弾検証済み・commit 済み）③WORK1 再起動→テスト環境完全復旧済み
 
 **⚠️ 最新の確定状態。詳細メモリ: `be-plugin-xml-msvc-static`（XPath根治）/ `be-plugin-audit-fixes`（監査修正の全記録）/ `be-plugin-daemon-test`（テスト基盤+再起動復旧手順）。**
