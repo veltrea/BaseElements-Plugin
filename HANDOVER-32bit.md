@@ -2,29 +2,30 @@
 
 （プレースホルダ凡例: `<USER>` = WORK1 の対話ログオンユーザー / `<ADMIN>` = WORK1 の管理・ビルド用ユーザー / `<PORT>` = fmd11 デーモンの待受ポート / `<SSH_KEY>` = WORK1 用 SSH 鍵パス / `<GIT_EMAIL>` = git コミット用メールアドレス / `<N>` = 動的ポート数の設定値。実値はローカルの `~/.claude/machines.local.env`・`~/.claude/CLAUDE.md`・メモリ `be-plugin-daemon-test` を参照。）
 
-## 次セッション（SESSION 10）開始プロンプト — 以下をそのまま貼る
+## 次セッション（SESSION 11）開始プロンプト — 以下をそのまま貼る
 
 ```
 BaseElements Plugin 32bit フォークの継続セッション。日本語で応答すること。
 
 まず以下を読んで文脈を復元:
-1. リポジトリの HANDOVER-32bit.md（/Volumes/2TB_USB/dev/filemaker-plugin/BaseElements-Plugin/BaseElements-Plugin/HANDOVER-32bit.md）の SESSION 9 セクション
-2. メモリ be-plugin-audit-fixes / be-plugin-magick-helper / be-plugin-daemon-test
+1. リポジトリの HANDOVER-32bit.md の SESSION 10 セクション
+2. リポジトリの UPSTREAM-PREP.md（上流還元の全準備状況・ユーザー判断待ち一覧）
+3. メモリ be-plugin-upstream-prep / be-plugin-audit-fixes / be-plugin-daemon-test
 
-現状: 監査の Win 実害系は SESSION 9 で全て修正済み（Batch 1〜5 + M-25、
-origin/main = 631d7637 まで push 済み・未 push なし、FMP11 実機回帰オールグリーン）。
-重大発見「FMP11 は kFMXT_Idle からの ExecuteFileSQL で 0xc0000409 死」は
-BUGREPORT-fmp11-idle-executefilesql.md（repo ルート、英語・上流 issue 用）に整理済み。
+現状: 上流還元の準備は SESSION 10 で完了。upstream-pr/* ブランチ 3 本を origin に
+push 済み（backgroundtask-thread-safety / smtpserver-duplicate-registration /
+loadstring-nonbmp-fixes）。BUGREPORT-fmp11-idle-executefilesql.md は提出可能な形に確定。
+重要な訂正: PRO 限定登録は上流 CHANGE_LOG に "Pro Version Only" と明記された意図的な
+製品区分＝「解除 PR」は撤回済み。LIBICONV_PLUG は上流 x64 静的リンク構成では非該当。
 
-今回のタスク: 上流還元の準備。着手順:
-  1. BUGREPORT-fmp11-idle-executefilesql.md をレビューし、上流へ出す形に確定
-     （必要なら現行 FM での再現確認。WORK1 に FMP19(64bit) はあるが 32bit .fmx は
-     ロード不可 → 検証するなら x64 ビルドが必要。やるかはユーザーに確認）
-  2. 上流 PR の切り出し: PRO 限定登録解除（ContainerConvertImage + BackgroundTask 系）
-     / H-3 サロゲート合成 + BUF#2/#3（mac/Linux）/ LIBICONV_PLUG の知見
-  3. （任意）belibs.dll から MagickCore/Wand/libpng16/turbojpeg/freetype を抜いて
-     再生成（mkbelibs.sh）→ DLL 減量。プラグインはもう Magick シンボルを参照しない
-  4. リポジトリ整理（Libraries/win32・fm11-sdk の管理方針はユーザー判断待ちのまま）
+今回のタスク（ユーザーの回答を最初に確認）:
+  1. UPSTREAM-PREP.md 末尾の「ユーザー判断待ち」3 点を確認
+     （issue/PR の提出可否と順序 / x64 ビルドをやるか / 提出アカウント）
+  2. 提出 GO なら: gh CLI で upstream へ issue + PR を順次提出
+  3. x64 GO なら: 上流標準の x64 構成でビルド → FMP19 で idle-SQL 再現確認
+     + backgroundtask ブランチの実機検証
+  4. （任意）belibs.dll から Magick 系を抜いて再生成（mkbelibs.sh）→ DLL 減量
+  5. リポジトリ整理（Libraries/win32・fm11-sdk の管理方針はユーザー判断待ちのまま）
 
 進め方の約束:
 - 修正はまず Mac 側ソース（正本）を編集 → mssh put で WORK1 に転送 → build32.bat
@@ -32,11 +33,57 @@ BUGREPORT-fmp11-idle-executefilesql.md（repo ルート、英語・上流 issue 
 - 修正のたびに fmd11 デーモンで実機回帰（回帰式と期待値は HANDOVER の SESSION 9 参照。
   /next を curl で直接叩かない = キューのジョブを食べる）
 - 日本語コメントを書く Source ファイルは UTF-8 BOM 必須。BOM なしファイルに書く
-  コメントは em-dash 等も含めピュア ASCII にする（cl.exe の CP932 解釈対策）
+  コメントは em-dash 等も含めピュア ASCII にする（cl.exe の CP932 解釈対策）。
+  upstream-pr/* ブランチのコメントは必ずピュア ASCII 英語
 - WORK1 が落ちていたら ~/.claude/bin/wake work1 → 復旧手順はメモリ be-plugin-daemon-test
 - git commit は必ず -c で veltrea identity を明示（~/.claude/CLAUDE.md の規則どおり）
 - 検証が通った単位でコミットし、セッション末に HANDOVER-32bit.md を更新して push
 ```
+
+---
+
+# 🟢 SESSION 10 最終状態（2026-07-03 昼） — 上流還元の準備完了（PR ブランチ 3 本 + BUGREPORT 確定 + UPSTREAM-PREP.md）。重要訂正: PRO 限定登録は意図的な製品区分（解除 PR 撤回）・LIBICONV_PLUG は上流非該当
+
+**⚠️ 最新の確定状態。詳細は repo ルートの `UPSTREAM-PREP.md` とメモリ `be-plugin-upstream-prep`。提出（PR/issue open）は未実施＝ユーザー判断待ち。**
+
+## 達成
+1. **BUGREPORT-fmp11-idle-executefilesql.md 確定**（main の `6d0c267a`）: 上流コード参照
+   （BEPlugin.cpp kFMXT_Idle / BESQLCommand::execute 無引数）を追記、環境表記修正、
+   「PRO 登録＝バグ」の誤った関連バレットを削除。
+2. **重要訂正**: 上流 CHANGE_LOG に BE_BackgroundTaskAdd/List・BE_ContainerConvertImage・
+   BE_SMTPServer 第5引数は **"Pro Version Only"** と明記＝意図的な製品区分。
+   「PRO 限定登録解除」上流 PR は撤回（フォーク側の解除はそのまま維持）。
+3. **LIBICONV_PLUG は上流非該当**: 上流 x64 は libiconv を MSVC /MT 静的リンク
+   （Project/Extras/libiconv → Libraries/win64/iconv.lib）＝ CRT 境界なし。issue 不要。
+4. **上流 PR ブランチ 3 本作成・origin へ push 済み**（いずれも upstream/main `2f204a1b` 直上）:
+   - `upstream-pr/backgroundtask-thread-safety`（2 コミット）: &environment ダングリング
+     キャプチャ / ワーカーからの FMX API / detached 例外→terminate / SQL 無エスケープ /
+     vector 競合 → キュー + idle 刈り取りに再設計（Batch 4 の移植、FMP11 ゲートなし）。
+     + ~BECurl の curl_global_cleanup 対策（Load/UnloadPlugin で参照 1 本保持）。
+   - `upstream-pr/smtpserver-duplicate-registration`（1 コミット）: df719a6a が残した
+     無条件 kBE_SMTPServer 1,5 登録（PRO 分岐直後）を削除。現状は死にコード（先勝ち）だが
+     登録順変更で silent にゲート無効化するため。
+   - `upstream-pr/loadstring-nonbmp-fixes`（1 コミット）: H-3（ParameterAsWideString の
+     サロゲート合成 + リーク解消 + 長さ assign）+ BUF#2（mac Sub_LoadString クランプ）
+     + BUF#3（Linux 同 + NUL 位置修正）。
+5. **検証**: サロゲート合成ループは standalone 9 ケース全合格（scratchpad）。mac .mm と
+   BEPluginUtilities.cpp は clang -fsyntax-only 通過。**3 ブランチとも実ビルドは未実施**
+   （x64 環境が要る。PR 本文に明記する前提）。
+
+## commit / push 状態
+- main: `6d0c267a`（BUGREPORT 確定）+ UPSTREAM-PREP.md + 本ハンドオーバー更新（セッション末 push）。
+- upstream-pr/* 3 ブランチ: origin へ push 済み。
+- 未追跡のまま: `Libraries/fm11-sdk/` `Libraries/win32/` `REGEX-JAPANESE-PLAN.md`
+  `XML-REWRITE-PLAN.md`（管理方針は引き続きユーザー判断待ち）。
+
+## ユーザー判断待ち（次セッション冒頭で確認）
+1. issue/PR の提出可否と順序（提案: issue → SMTP → loadstring → backgroundtask）
+2. x64 ビルドをやるか（FMP19 での idle-SQL 再現確認 + backgroundtask 実機検証に必要）
+3. Libraries/win32・fm11-sdk の管理方針（従来からの持ち越し）
+
+## 環境（セッション終了時点）
+- 今セッションは Mac 側のみで完結（WORK1 未使用・fmd11/FMP11 の状態は SESSION 9 のまま）。
+- フォークの Win32 実機状態は SESSION 9 から変化なし（配備 .fmx = 098c9204 ビルド）。
 
 ---
 
