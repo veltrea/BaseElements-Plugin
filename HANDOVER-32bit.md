@@ -18,14 +18,17 @@ loadstring-nonbmp-fixes）。BUGREPORT-fmp11-idle-executefilesql.md は提出可
 重要な訂正: PRO 限定登録は上流 CHANGE_LOG に "Pro Version Only" と明記された意図的な
 製品区分＝「解除 PR」は撤回済み。LIBICONV_PLUG は上流 x64 静的リンク構成では非該当。
 
+方針（恒久ルール）: 上流への PR は出さない（~/.claude/CLAUDE.md の全プロジェクト共通
+ルール）。upstream-pr/* ブランチと BUGREPORT はリポジトリ内のドラフト・記録として保管。
+外部提出（issue 含む）は 100% ユーザーが決める。Claude からは提出も催促もしない。
+
 今回のタスク（ユーザーの回答を最初に確認）:
-  1. UPSTREAM-PREP.md 末尾の「ユーザー判断待ち」3 点を確認
-     （issue/PR の提出可否と順序 / x64 ビルドをやるか / 提出アカウント）
-  2. 提出 GO なら: gh CLI で upstream へ issue + PR を順次提出
-  3. x64 GO なら: 上流標準の x64 構成でビルド → FMP19 で idle-SQL 再現確認
+  1. UPSTREAM-PREP.md 末尾の「ユーザー判断待ち」2 点を確認
+     （x64 ビルドをやるか / Libraries/win32・fm11-sdk の管理方針）
+  2. x64 GO なら: 上流標準の x64 構成でビルド → FMP19 で idle-SQL 再現確認
      + backgroundtask ブランチの実機検証
-  4. （任意）belibs.dll から Magick 系を抜いて再生成（mkbelibs.sh）→ DLL 減量
-  5. リポジトリ整理（Libraries/win32・fm11-sdk の管理方針はユーザー判断待ちのまま）
+  3. （任意）belibs.dll から Magick 系を抜いて再生成（mkbelibs.sh）→ DLL 減量
+  4. リポジトリ整理（Libraries/win32・fm11-sdk の管理方針はユーザー判断待ちのまま）
 
 進め方の約束:
 - 修正はまず Mac 側ソース（正本）を編集 → mssh put で WORK1 に転送 → build32.bat
@@ -44,7 +47,7 @@ loadstring-nonbmp-fixes）。BUGREPORT-fmp11-idle-executefilesql.md は提出可
 
 # 🟢 SESSION 10 最終状態（2026-07-03 昼） — 上流還元の準備完了（PR ブランチ 3 本 + BUGREPORT 確定 + UPSTREAM-PREP.md）。重要訂正: PRO 限定登録は意図的な製品区分（解除 PR 撤回）・LIBICONV_PLUG は上流非該当
 
-**⚠️ 最新の確定状態。詳細は repo ルートの `UPSTREAM-PREP.md` とメモリ `be-plugin-upstream-prep`。提出（PR/issue open）は未実施＝ユーザー判断待ち。**
+**⚠️ 最新の確定状態。詳細は repo ルートの `UPSTREAM-PREP.md` とメモリ `be-plugin-upstream-prep`。方針確定（同日）: 上流への PR は出さない（恒久ルール）。ブランチ群はドラフト・記録として保管。**
 
 ## 達成
 1. **BUGREPORT-fmp11-idle-executefilesql.md 確定**（main の `6d0c267a`）: 上流コード参照
@@ -77,9 +80,10 @@ loadstring-nonbmp-fixes）。BUGREPORT-fmp11-idle-executefilesql.md は提出可
   `XML-REWRITE-PLAN.md`（管理方針は引き続きユーザー判断待ち）。
 
 ## ユーザー判断待ち（次セッション冒頭で確認）
-1. issue/PR の提出可否と順序（提案: issue → SMTP → loadstring → backgroundtask）
-2. x64 ビルドをやるか（FMP19 での idle-SQL 再現確認 + backgroundtask 実機検証に必要）
-3. Libraries/win32・fm11-sdk の管理方針（従来からの持ち越し）
+1. x64 ビルドをやるか（FMP19 での idle-SQL 再現確認 + backgroundtask 実機検証に有用。提出とは無関係にフォークの品質確認として価値あり）
+2. Libraries/win32・fm11-sdk の管理方針（従来からの持ち越し）
+
+（旧 1 の「issue/PR の提出可否」は方針決定により解消: 上流への PR は出さない＝恒久ルール。issue も含め外部提出は 100% ユーザーが決め、Claude からは提出も催促もしない）
 
 ## 環境（セッション終了時点）
 - 今セッションは Mac 側のみで完結（WORK1 未使用・fmd11/FMP11 の状態は SESSION 9 のまま）。
