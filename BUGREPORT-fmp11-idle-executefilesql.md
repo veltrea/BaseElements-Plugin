@@ -23,10 +23,15 @@ background-task feature also started executing SQL at idle.
 
 ## Environment
 
-- FileMaker Pro 11.0v3 (11.0.3.312), 32-bit, Windows 11 (Darwin-free, native)
+- FileMaker Pro 11.0v3 (11.0.3.312), 32-bit, running natively on Windows 11 (64-bit)
 - Plug-in: BaseElements 32-bit fork, MSVC toolset 14.50 (`/MT`, `/std:c++17`),
   current FM Plug-In SDK FMWrapper headers, `Release|Win32`
 - Idle is enabled (option string), `parm1 != kFMXT_Unsafe` respected
+- The relevant upstream code is unchanged at `main` (`2f204a1b`):
+  the idle handler (`Source/BEPlugin.cpp`, `case kFMXT_Idle`) runs
+  `g_ddl_command->execute ( )`, i.e. the no-argument overload in
+  `Source/BESQLCommand.cpp` that calls `FMX_SetToCurrentEnv` and then
+  `ExecuteFileSQL`
 
 ## Reproduction
 
@@ -115,9 +120,6 @@ Either way the operation is not survivable on FMP 11.
 
 ## Related findings from the same session (separate issues, same family)
 
-- `BE_BackgroundTaskAdd` / `BE_BackgroundTaskList` are registered only under
-  `#if BEP_PRO_VERSION` (`BEPlugin.cpp`) — non-PRO builds silently lack them.
-  Same pattern as the `BE_ContainerConvertImage` PRO-only registration bug.
 - `BE_BackgroundTaskAdd`'s detached worker captured `&environment` by
   reference (dangling once the caller returns) and created FMX objects off
   the main thread; an exception escaping the detached thread terminates the
