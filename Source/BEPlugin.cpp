@@ -422,10 +422,17 @@ void FMX_ENTRYPT BEP_EXPORT FMExternCallProc ( FMX_ExternCallPtr plugin_call ) {
 		{
 			bool safe_idle = plugin_call->parm1 != kFMXT_Unsafe;
 
-			if ( safe_idle && g_ddl_command.get() != 0 ) {
+			if ( safe_idle ) {
 
-				g_ddl_command->execute ( );
-				g_ddl_command.reset();
+				if ( g_ddl_command.get() != 0 ) {
+
+					g_ddl_command->execute ( );
+					g_ddl_command.reset();
+
+				}
+
+				// background task results queued by worker threads (see BESQLCommand.h)
+				execute_queued_background_task_sql();
 
 			}
 

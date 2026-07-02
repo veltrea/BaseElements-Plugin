@@ -3239,7 +3239,7 @@ fmx::errcode BE_CurlGetInfo ( short /* funcId */, const ExprEnv& /* environment 
 #pragma mark -
 
 
-fmx::errcode BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv& environment, const DataVect& parameters, Data& results )
+fmx::errcode BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv& /* environment */, const DataVect& parameters, Data& results )
 {
 	errcode error = NoError();
 
@@ -3267,7 +3267,16 @@ fmx::errcode BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv& environme
 
 		std::shared_ptr<BECurl> curl ( new BECurl ( url, kBE_HTTP_METHOD_POST, "", username, password, post_args ) );
 
-		std::thread background_task ( [id, when, curl, sql, sql_file, &environment] {
+		// no FMX objects and no FMX API on the worker thread: the environment
+		// reference would dangle once this function returns, and the FMX API is
+		// not safe to call from another thread — the finished sql is queued as
+		// plain strings and executed by the idle handler on the main thread
+
+		std::thread background_task ( [id, when, curl, sql, sql_file] {
+
+			// an exception escaping a detached thread calls std::terminate
+			// and takes the host application down with it
+			try {
 
 			// when do we run?
 			auto run_at = std::chrono::system_clock::from_time_t ( when );
@@ -3302,14 +3311,19 @@ fmx::errcode BE_BackgroundTaskAdd ( short /* funcId */, const ExprEnv& environme
 			json->stringify ( output, 1 );
 
 			// construct the sql to return the result
+			// the result is substituted into a sql string literal, so double any quotes
+			std::string escaped_result = output.str();
+			boost::replace_all ( escaped_result, "'", "''" );
+
 			std::string sql_command = sql;
-			boost::replace_all ( sql_command, "###RESULT###", output.str() );
+			boost::replace_all ( sql_command, "###RESULT###", escaped_result );
 
-			// set the result
-			BESQLCommandUniquePtr sql_cmd ( new BESQLCommand ( sql_command, sql_file ) );
-			sql_cmd->execute ( environment );
+			// hand the result over to the idle handler (also marks the task completed)
+			queue_background_task_sql ( sql_command, sql_file, id );
 
-			g_completed_background_tasks.push_back ( id );
+			} catch ( ... ) {
+				queue_background_task_sql ( "", "", id ); // empty sql = just mark the task completed
+			}
 
 			}
 		);

@@ -14,12 +14,62 @@
 #include "BEPluginGlobalDefines.h"
 #include "BEPluginUtilities.h"
 
+#include <deque>
+#include <mutex>
+
 
 using namespace std;
 using namespace fmx;
 
 
 BESQLCommandUniquePtr g_ddl_command;
+
+extern std::vector<long> g_completed_background_tasks; // defined in BEPluginFunctions.cpp
+
+
+struct BEBackgroundTaskResult {
+	std::string sql_command;
+	std::string sql_file;
+	long task_id;
+};
+
+static std::mutex g_background_task_result_mutex;
+static std::deque<BEBackgroundTaskResult> g_background_task_results;
+
+
+void queue_background_task_sql ( const std::string& sql_command, const std::string& sql_file, const long task_id )
+{
+	std::lock_guard<std::mutex> lock ( g_background_task_result_mutex );
+	g_background_task_results.push_back ( { sql_command, sql_file, task_id } );
+}
+
+
+// runs on the main thread only: BESQLCommand and the FMX API must not be
+// used from a worker thread
+
+void execute_queued_background_task_sql ( void )
+{
+	std::deque<BEBackgroundTaskResult> batch;
+	{
+		std::lock_guard<std::mutex> lock ( g_background_task_result_mutex );
+		batch.swap ( g_background_task_results );
+	}
+
+	for ( const auto& task : batch ) {
+
+		try {
+			if ( !task.sql_command.empty() ) {
+				BESQLCommand sql_command ( task.sql_command, task.sql_file );
+				sql_command.execute(); // fetches the current environment
+			}
+		} catch ( ... ) {
+			; // never let an exception escape into FMExternCallProc
+		}
+
+		g_completed_background_tasks.push_back ( task.task_id );
+
+	}
+}
 
 
 BESQLCommand::BESQLCommand ( const Text& _expression, const Text& _filename )

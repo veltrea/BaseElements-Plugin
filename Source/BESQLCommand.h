@@ -64,5 +64,14 @@ protected:
 typedef std::unique_ptr<BESQLCommand> BESQLCommandUniquePtr;
 
 
+// background task results
+// worker threads must not touch the FMX API or FMX objects, so they queue the
+// finished sql (plain strings only) and the idle handler executes it on the
+// main thread (the same pattern as g_ddl_command)
+
+void queue_background_task_sql ( const std::string& sql_command, const std::string& sql_file, const long task_id );
+void execute_queued_background_task_sql ( void ); // main thread only
+
+
 #endif // BESQLCOMMAND_H
 
