@@ -61,3 +61,7 @@ Project/core
 Project/CodeSigning/*
 *.vsidx
 *.lock
+
+# veltrea fork: internal Japanese working notes (handover / audit / plan / bug reports)
+# private to this fork - not published, not for upstream
+private/
