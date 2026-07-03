@@ -107,8 +107,7 @@ const std::string validate_xml ( const std::string xml, const std::string schema
 		xmlFreeDoc ( schema_document );
 	}
 
-	xmlCleanupParser();
-
+	// libxml2 global cleanup runs once at plug-in shutdown (CleanupXSLT), not here.
 	return g_xsd_errors;
 
 }
@@ -146,8 +145,7 @@ const std::string canonical_xml ( const std::string xml )
 	}
 
 
-	xmlCleanupParser();
-
+	// libxml2 global cleanup runs once at plug-in shutdown (CleanupXSLT), not here.
 	return canonized_xml;
 
 }

@@ -100,8 +100,9 @@ BEXMLTextReader::~BEXMLTextReader()
 	}
 #endif
 
-	xmlCleanupParser();
-
+	// Do not call xmlCleanupParser() here: it tears down libxml2's global
+	// state and must run once at plug-in shutdown (CleanupXSLT), not on
+	// every reader destruction.
 } // ~BEXMLTextReader
 
 
