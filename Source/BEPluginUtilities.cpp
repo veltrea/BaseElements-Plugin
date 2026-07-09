@@ -50,6 +50,9 @@
 #include <boost/filesystem/fstream.hpp>
 #pragma GCC diagnostic pop
 
+#if defined(__APPLE__)
+#define _ICONV_H_
+#endif
 #include <../Headers/iconv/iconv.h>
 #include <zlib/zlib.h>
 

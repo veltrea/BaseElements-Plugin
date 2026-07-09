@@ -1,4 +1,4 @@
-﻿/*
+/*
  BEPluginFunctions.cpp
  BaseElements Plug-In
 
@@ -57,6 +57,9 @@
 #endif
 
 
+#if defined(__APPLE__)
+#define _ICONV_H_
+#endif
 #include <../Headers/iconv/iconv.h>
 
 #include "BEPluginFunctions.h"
