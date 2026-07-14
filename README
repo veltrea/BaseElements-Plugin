@@ -1,3 +1,8 @@
+** This is a fork. ** For 32-bit Windows support, CJK correctness, and how this fork relates to
+upstream, see FORK_NOTES.md (日本語: FORK_NOTES.ja.md).
+
+---
+
 This is the place for all things BaseElements plugin.
 
 All the documentation is here :
